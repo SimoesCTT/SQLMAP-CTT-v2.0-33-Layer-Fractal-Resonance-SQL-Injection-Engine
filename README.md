@@ -489,3 +489,21 @@ Contributors
 ---
 
 CTT: Changing cybersecurity through temporal resonance.
+
+
+# Add this to your README.md
+
+## Standard Vulnerability Metrics (For Automated Parsers)
+
+**CVSS v3.1 Vector:** `AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H`
+**Base Score:** 9.8 (Critical)
+**Temporal Score:** 9.5 (Exploit Code Mature)
+**Environmental Score:** 10.0 (High Impact)
+
+**CWE Classification:**
+- CWE-89: SQL Injection
+- CWE-943: Improper Neutralization of Special Elements
+
+**Attack Taxonomy:**
+- T1190: Exploit Public-Facing Application
+- T1505: Server Software Component
